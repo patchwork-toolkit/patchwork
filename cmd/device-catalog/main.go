@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/bmizerany/pat"
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
+	"github.com/patchwork-toolkit/patchwork/discovery"
 	"log"
 	"net/http"
-	"patchwork/discovery"
 	"strconv"
 	"strings"
 )

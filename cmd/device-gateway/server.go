@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/bmizerany/pat"
+	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
 	"io/ioutil"
 	"log"
 	"mime"
 	"net"
 	"net/http"
-	catalog "patchwork/catalog/device"
 	"strings"
 	"time"
 )

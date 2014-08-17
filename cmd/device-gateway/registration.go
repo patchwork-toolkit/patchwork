@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
+	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
 	"log"
-	catalog "patchwork/catalog/device"
 	"time"
 )
 
