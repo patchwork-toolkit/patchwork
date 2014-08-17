@@ -2,8 +2,8 @@ package device
 
 import (
 	"errors"
+	"github.com/patchwork-toolkit/patchwork/catalog"
 	"log"
-	catalog "patchwork/catalog"
 	"strings"
 	"sync"
 	"time"

@@ -2,8 +2,8 @@ package service
 
 import (
 	"errors"
+	"github.com/patchwork-toolkit/patchwork/catalog"
 	"log"
-	"patchwork/catalog"
 	"strings"
 	"sync"
 	"time"
