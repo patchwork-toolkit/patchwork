@@ -1,4 +1,4 @@
-# Patchwork Tookit
+# Patchwork Toolkit
 
 ## Lightweight Platform for the Network of Things (written in Golang)
 
