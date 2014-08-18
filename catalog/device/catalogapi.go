@@ -20,7 +20,7 @@ const (
 	FTypeRegistrations = "devices"
 	FTypeResource      = "resource"
 	FTypeResources     = "resources"
-	CurrentVersion     = "0.2.1"
+	CurrentApiVersion  = "0.2.1"
 )
 
 type Collection struct {
@@ -161,7 +161,7 @@ func (self ReadableCatalogAPI) List(w http.ResponseWriter, req *http.Request) {
 	coll := self.collectionFromRegistrations(registrations)
 
 	b, _ := json.Marshal(coll)
-	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentVersion)
+	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.Write(b)
 }
 
@@ -219,7 +219,7 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 	}
 
 	b, _ := json.Marshal(data)
-	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentVersion)
+	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.Write(b)
 }
 
@@ -235,7 +235,7 @@ func (self ReadableCatalogAPI) Get(w http.ResponseWriter, req *http.Request) {
 
 	b, _ := json.Marshal(r.ldify())
 
-	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentVersion)
+	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.Write(b)
 	return
 }
@@ -261,7 +261,7 @@ func (self ReadableCatalogAPI) GetResource(w http.ResponseWriter, req *http.Requ
 	}
 
 	b, _ := json.Marshal(rs.ldify())
-	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentVersion)
+	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.Write(b)
 	return
 }
@@ -286,7 +286,7 @@ func (self WritableCatalogAPI) Add(w http.ResponseWriter, req *http.Request) {
 	}
 
 	b, _ := json.Marshal(ra.ldify())
-	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentVersion)
+	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.WriteHeader(http.StatusCreated)
 	w.Write(b)
 	return
@@ -320,7 +320,7 @@ func (self WritableCatalogAPI) Update(w http.ResponseWriter, req *http.Request) 
 	}
 
 	b, _ := json.Marshal(ru.ldify())
-	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentVersion)
+	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)
 
@@ -344,7 +344,7 @@ func (self WritableCatalogAPI) Delete(w http.ResponseWriter, req *http.Request) 
 	}
 
 	b, _ := json.Marshal(rd.ldify())
-	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentVersion)
+	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)
 	return

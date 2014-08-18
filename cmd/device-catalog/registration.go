@@ -1,0 +1,82 @@
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	dc "github.com/patchwork-toolkit/patchwork/catalog/device"
+	sc "github.com/patchwork-toolkit/patchwork/catalog/service"
+	"log"
+	"strings"
+)
+
+const (
+	registrationTemplate = `
+	{
+	  "name": "DeviceCatalog",
+	  "meta": {
+	    "serviceType": "",
+	    "apiVersion": ""
+	  },
+	  "protocols": [
+	    {
+	      "type": "REST",
+	      "endpoint": {
+	        "url": ""
+	      },
+	      "methods": [
+	        "GET",
+	        "POST"
+	      ],
+	      "content-types": [
+	        "application/ld+json"
+	      ]
+	    }
+	  ],
+	  "representation": {
+	    "application/ld+json": {}
+	  }
+	}
+	`
+)
+
+func registrationFromConfig(config *Config) *sc.ServiceConfig {
+	serviceConfig := &sc.ServiceConfig{}
+
+	json.Unmarshal([]byte(registrationTemplate), serviceConfig)
+	serviceConfig.Host = config.Address
+	serviceConfig.Description = config.Description
+
+	// meta
+	serviceConfig.Meta["serviceType"] = dc.DnssdServiceType
+	serviceConfig.Meta["apiVersion"] = dc.CurrentApiVersion
+
+	// protocols
+	// port from the endpoint, address from the public address
+	parts := strings.Split(config.Endpoint, ":")
+	serviceConfig.Protocols[0].Endpoint["url"] = fmt.Sprintf("http://%s%s:%s", config.Address, dc.CatalogBaseUrl, parts[1])
+
+	return serviceConfig
+}
+
+// Registers service in all configured catalogs
+func registerService(config *Config) {
+	serviceConfig := registrationFromConfig(config)
+
+	for _, cat := range config.ServiceCatalog {
+		// Ignore endpoint: discover and register
+		if cat.Discover == true {
+			// TODO: implement discovery of service catalog and register in it
+		} else {
+			// Register in the catalog specified by endpoint
+			registrator := sc.NewRegistrator(cat.Endpoint)
+
+			// Set TTL
+			serviceConfig.Ttl = cat.Ttl
+
+			err := registrator.RegisterService(serviceConfig, true)
+			if err != nil {
+				log.Printf("Error registering in Service Catalog %v: %v\n", cat.Endpoint, err)
+			}
+		}
+	}
+}

@@ -78,12 +78,20 @@ func main() {
 	if config.DnssdEnabled {
 		parts := strings.Split(config.Endpoint, ":")
 		port, _ := strconv.Atoi(parts[1])
-		_, err := discovery.DnsRegisterService(config.Name, catalog.DnssdServiceType, port)
+		_, err := discovery.DnsRegisterService(config.Description, catalog.DnssdServiceType, port)
 		if err != nil {
 			log.Printf("Failed to perform DNS-SD registration: %v\n", err.Error())
 		}
 	}
 
 	log.Printf("Started standalone catalog at %s%s", config.Endpoint, catalog.CatalogBaseUrl)
+
+	// Register in Service Catalogs if configured
+	if len(config.ServiceCatalog) > 0 {
+		log.Println("Will now register in the configured Service Catalogs")
+		registerService(config)
+	}
+
+	// Listen and Serve
 	log.Fatal(http.ListenAndServe(config.Endpoint, nil))
 }

@@ -60,14 +60,14 @@ func registerDevices(config *Config, catalogStorage *catalog.CatalogStorage) {
 	// Register in the local catalog
 	localCatalogClient := catalog.NewLocalCatalogClient(catalogStorage)
 	publishRegistrations(localCatalogClient, devices, false)
-	log.Printf("Registered %v device(s) in local catalog", len(config.Devices))
+	log.Printf("Registered %v device(s) in local catalog\n", len(config.Devices))
 
 	// Publish to remote catalogs if configured
 	for _, cat := range config.Catalog {
 		if cat.Discover == true {
 			//TODO: Catalog discovery
 		} else {
-			log.Printf("Will publish to remote catalog %v", cat.Endpoint)
+			log.Printf("Will publish to remote catalog %v\n", cat.Endpoint)
 			remoteCatalogClient := catalog.NewRemoteCatalogClient(cat.Endpoint)
 			publishRegistrations(remoteCatalogClient, devices, true)
 		}
@@ -98,17 +98,17 @@ func publishRegistrations(catalogClient catalog.CatalogClient, registrations []c
 				log.Printf("Error accessing the catalog: %v\n", err)
 				return
 			}
-			log.Printf("Updated registration %v", rru.Id)
+			log.Printf("Updated registration %v\n", rru.Id)
 		}
 	}
 
 	// If told to keep alive
 	if keepalive {
-		log.Printf("Will keep alive %v registrations", len(registrations))
+		log.Printf("Will keep alive %v registrations\n", len(registrations))
 		for _, reg := range registrations {
 			var delay time.Duration
 
-			if reg.Ttl-minKeepaliveSec < minKeepaliveSec {
+			if reg.Ttl-minKeepaliveSec <= minKeepaliveSec {
 				// WARNING: this may lead to high churn in the remote catalog (choose ttl wisely)
 				delay = time.Duration(minKeepaliveSec) * time.Second
 			} else {
@@ -126,7 +126,8 @@ func keepRegistrationAlive(delay time.Duration, client catalog.CatalogClient, re
 	ru, err := client.Update(reg.Id, reg)
 	if err != nil {
 		log.Printf("Error accessing the catalog: %v\n", err)
-		keepRegistrationAlive(delay, client, reg)
+		go keepRegistrationAlive(delay, client, reg)
+		return
 	}
 
 	// Registration not found in the remote catalog
@@ -135,11 +136,12 @@ func keepRegistrationAlive(delay time.Duration, client catalog.CatalogClient, re
 		ru, err = client.Add(reg)
 		if err != nil {
 			log.Printf("Error accessing the catalog: %v\n", err)
-			keepRegistrationAlive(delay, client, reg)
+			go keepRegistrationAlive(delay, client, reg)
+			return
 		}
-		log.Printf("Added registration %v", ru.Id)
+		log.Printf("Added registration %v\n", ru.Id)
 	} else {
-		log.Printf("Updated registration %v", ru.Id)
+		log.Printf("Updated registration %v\n", ru.Id)
 	}
 	reg = ru
 

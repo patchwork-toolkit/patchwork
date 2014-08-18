@@ -8,10 +8,18 @@ import (
 )
 
 type Config struct {
-	Name         string `json:"name"`
-	DnssdEnabled bool   `json:"dnssdEnabled"`
-	Endpoint     string `json:"endpoint"`
-	StaticDir    string `json:"staticDir"`
+	Description    string           `json:"description"`
+	Address        string           `json:"address"`
+	Endpoint       string           `json:"endpoint"`
+	DnssdEnabled   bool             `json:"dnssdEnabled"`
+	StaticDir      string           `json:"staticDir"`
+	ServiceCatalog []ServiceCatalog `json:"serviceCatalog"`
+}
+
+type ServiceCatalog struct {
+	Discover bool
+	Endpoint string
+	Ttl      int
 }
 
 func (self *Config) Validate() error {
