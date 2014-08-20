@@ -1,3 +1,4 @@
+[![Stories in Ready](https://badge.waffle.io/patchwork-toolkit/patchwork.png?label=ready&title=Ready)](https://waffle.io/patchwork-toolkit/patchwork)
 ## Patchwork Toolkit
 
 ### Lightweight Platform for the Network of Things (written in Golang)
