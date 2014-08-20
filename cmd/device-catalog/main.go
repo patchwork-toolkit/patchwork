@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"github.com/bmizerany/pat"
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
-	"github.com/patchwork-toolkit/patchwork/discovery"
+	//"github.com/patchwork-toolkit/patchwork/discovery"
 	"log"
 	"net/http"
-	"strconv"
+	//"strconv"
 	"strings"
 )
 
@@ -75,14 +75,16 @@ func main() {
 	http.Handle("/", m)
 
 	// Announce serice using DNS-SD
-	if config.DnssdEnabled {
-		parts := strings.Split(config.Endpoint, ":")
-		port, _ := strconv.Atoi(parts[1])
-		_, err := discovery.DnsRegisterService(config.Description, catalog.DnssdServiceType, port)
-		if err != nil {
-			log.Printf("Failed to perform DNS-SD registration: %v\n", err.Error())
+	/*
+		if config.DnssdEnabled {
+			parts := strings.Split(config.Endpoint, ":")
+			port, _ := strconv.Atoi(parts[1])
+			_, err := discovery.DnsRegisterService(config.Description, catalog.DnssdServiceType, port)
+			if err != nil {
+				log.Printf("Failed to perform DNS-SD registration: %v\n", err.Error())
+			}
 		}
-	}
+	*/
 
 	log.Printf("Started standalone catalog at %s%s", config.Endpoint, catalog.CatalogBaseUrl)
 

@@ -27,6 +27,10 @@ func loadConfig(confPath string) (*Config, error) {
 
 	dir := filepath.Dir(confPath)
 	devicesDir := filepath.Join(dir, "devices")
+	if _, err = os.Stat(devicesDir); os.IsNotExist(err) {
+		return nil, err
+	}
+
 	err = filepath.Walk(devicesDir, func(path string, info os.FileInfo, err error) error {
 		if info.IsDir() || !strings.HasSuffix(path, ".json") {
 			return nil
@@ -49,6 +53,7 @@ func loadConfig(confPath string) (*Config, error) {
 
 		return nil
 	})
+
 	if err != nil {
 		return nil, err
 	}

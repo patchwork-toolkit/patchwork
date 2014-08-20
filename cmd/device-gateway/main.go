@@ -55,11 +55,13 @@ func main() {
 	// Register devices in the local catalog and run periodic remote catalog updates (if required)
 	go registerDevices(config, catalogStorage)
 
-	// Announce serice using DNS-SD
-	dnsRegistration, err := dnsRegisterService(config)
-	if err != nil {
-		log.Printf("Failed to perform DNS-SD registration: %v\n", err.Error())
-	}
+	/*
+		// Announce serice using DNS-SD
+		dnsRegistration, err := dnsRegisterService(config)
+		if err != nil {
+			log.Printf("Failed to perform DNS-SD registration: %v\n", err.Error())
+		}
+	*/
 
 	// Ctrl+C handling
 	handler := make(chan os.Signal, 1)
@@ -75,9 +77,11 @@ func main() {
 	if mqttPublisher != nil {
 		mqttPublisher.stop()
 	}
-	if dnsRegistration != nil {
-		dnsRegistration.Stop()
-	}
+	/*
+		if dnsRegistration != nil {
+			dnsRegistration.Stop()
+		}
+	*/
 
 	log.Println("Stopped")
 	os.Exit(0)
