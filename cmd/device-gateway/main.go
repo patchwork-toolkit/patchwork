@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	confPath = flag.String("conf", "conf/device-gateway.json", "Device gateway configuration file")
+	confPath = flag.String("conf", "conf/device-gateway.json", "Device gateway configuration file path")
 )
 
 func main() {
@@ -60,6 +60,18 @@ func main() {
 		dnsRegistration, err := dnsRegisterService(config)
 		if err != nil {
 			log.Printf("Failed to perform DNS-SD registration: %v\n", err.Error())
+		}
+
+		or
+
+		consider this:
+		if config.DnssdEnabled {
+			parts := strings.Split(config.Endpoint, ":")
+			port, _ := strconv.Atoi(parts[1])
+			_, err := discovery.DnsRegisterService(config.Name, catalog.DnssdServiceType, port)
+			if err != nil {
+				log.Printf("Failed to perform DNS-SD registration: %v\n", err.Error())
+			}
 		}
 	*/
 

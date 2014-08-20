@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	confPath  = flag.String("confPath", "conf/device-catalog.json", "Configuration file path")
+	confPath  = flag.String("conf", "conf/device-catalog.json", "Device catalog configuration file path")
 	staticDir = ""
 )
 
