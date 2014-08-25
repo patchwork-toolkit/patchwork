@@ -41,7 +41,7 @@ func registerDevices(config *Config, catalogStorage *catalog.CatalogStorage) {
 					p.Endpoint["url"] = fmt.Sprintf("http://%s:%d%s",
 						config.Addr,
 						config.Protocols[ProtocolTypeREST].Port,
-						config.Protocols[ProtocolTypeREST].Uri+"/"+device.Name+"/"+resource.Name)
+						RestApiBaseUrl+"/"+device.Name+"/"+resource.Name)
 				} else if proto.Type == ProtocolTypeMQTT {
 					mqtt, ok := config.Protocols[ProtocolTypeMQTT]
 					if ok {

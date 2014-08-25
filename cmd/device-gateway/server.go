@@ -95,14 +95,13 @@ func (self *RESTfulAPI) staticHandler() http.HandlerFunc {
 }
 
 func (self *RESTfulAPI) mountResources() {
-	baseUri := self.config.Protocols[ProtocolTypeREST].Uri
 	for _, device := range self.config.Devices {
 		for _, resource := range device.Resources {
 			for _, protocol := range resource.Protocols {
 				if protocol.Type != ProtocolTypeREST {
 					continue
 				}
-				uri := baseUri + "/" + device.Name + "/" + resource.Name
+				uri := RestApiBaseUrl + "/" + device.Name + "/" + resource.Name
 				log.Println("RESTfulAPI: Mounting resource:", uri)
 				rid := device.ResourceId(resource.Name)
 				for _, method := range protocol.Methods {
