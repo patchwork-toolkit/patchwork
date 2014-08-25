@@ -120,7 +120,6 @@ const (
 type Protocol struct {
 	Host   string
 	Port   int
-	Uri    string
 	Prefix string
 }
 

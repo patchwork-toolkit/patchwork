@@ -45,7 +45,7 @@ func (self *RESTfulAPI) start(catalogStorage *catalog.CatalogStorage) {
 
 	self.mountCatalog(catalogStorage)
 	self.mountResources()
-	self.router.Get(restConf.Uri, self.indexHandler())
+	self.router.Get(RestApiBaseUrl, self.indexHandler())
 	self.router.Get("/static/", self.staticHandler())
 
 	// Mount router to server
@@ -66,7 +66,7 @@ func (self *RESTfulAPI) start(catalogStorage *catalog.CatalogStorage) {
 		return
 	}
 
-	log.Printf("Starting server at http://%v%v", addr, restConf.Uri)
+	log.Printf("Starting server at http://%v%v", addr, RestApiBaseUrl)
 
 	err = s.Serve(ln)
 	if err != nil {
