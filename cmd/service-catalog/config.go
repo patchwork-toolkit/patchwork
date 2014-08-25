@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
-	"strings"
 )
 
 type Config struct {
 	Name         string `json:"name"`
 	DnssdEnabled bool   `json:"dnssdEnabled"`
-	Endpoint     string `json:"endpoint"`
+	Host         string `json:"host"`
+	Port         int    `json:"port"`
 	StaticDir    string `json:"staticDir"`
 	Storage      string `json:"storage"`
 }
@@ -21,8 +21,8 @@ var supportedBackends = map[string]bool{
 
 func (self *Config) Validate() error {
 	var err error
-	if self.Endpoint == "" && len(strings.Split(self.Endpoint, ":")) > 1 {
-		err = errors.New("Empty endpoint")
+	if self.Host == "" || self.Port == 0 {
+		err = errors.New("Empty host or port")
 	}
 	if !supportedBackends[self.Storage] {
 		err = errors.New("Unsupported storage backend")

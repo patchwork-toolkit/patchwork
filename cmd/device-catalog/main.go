@@ -8,7 +8,7 @@ import (
 	//"github.com/patchwork-toolkit/patchwork/discovery"
 	"log"
 	"net/http"
-	//"strconv"
+	"strconv"
 	"strings"
 )
 
@@ -77,16 +77,14 @@ func main() {
 	// Announce serice using DNS-SD
 	/*
 		if config.DnssdEnabled {
-			parts := strings.Split(config.Endpoint, ":")
-			port, _ := strconv.Atoi(parts[1])
-			_, err := discovery.DnsRegisterService(config.Description, catalog.DnssdServiceType, port)
+			_, err := discovery.DnsRegisterService(config.Description, catalog.DnssdServiceType, config.Port)
 			if err != nil {
 				log.Printf("Failed to perform DNS-SD registration: %v\n", err.Error())
 			}
 		}
 	*/
 
-	log.Printf("Started standalone catalog at %s%s", config.Endpoint, catalog.CatalogBaseUrl)
+	log.Printf("Started standalone Device Catalog at %v:%v%v", config.Host, config.Port, catalog.CatalogBaseUrl)
 
 	// Register in Service Catalogs if configured
 	if len(config.ServiceCatalog) > 0 {
@@ -95,5 +93,6 @@ func main() {
 	}
 
 	// Listen and Serve
-	log.Fatal(http.ListenAndServe(config.Endpoint, nil))
+	endpoint := fmt.Sprintf("%s:%s", config.Host, strconv.Itoa(config.Port))
+	log.Fatal(http.ListenAndServe(endpoint, nil))
 }

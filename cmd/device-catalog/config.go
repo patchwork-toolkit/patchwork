@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"io/ioutil"
-	"strings"
 )
 
 type Config struct {
 	Description    string           `json:"description"`
 	Address        string           `json:"address"`
-	Endpoint       string           `json:"endpoint"`
+	Host           string           `json:"host"`
+	Port           int              `json:"port"`
 	DnssdEnabled   bool             `json:"dnssdEnabled"`
 	StaticDir      string           `json:"staticDir"`
 	ServiceCatalog []ServiceCatalog `json:"serviceCatalog"`
@@ -23,7 +23,7 @@ type ServiceCatalog struct {
 }
 
 func (self *Config) Validate() error {
-	if self.Endpoint != "" && len(strings.Split(self.Endpoint, ":")) > 1 {
+	if self.Host != "" && self.Port > 0 {
 		return nil
 	}
 	return errors.New("Invalid config")

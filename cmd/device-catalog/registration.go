@@ -6,7 +6,6 @@ import (
 	dc "github.com/patchwork-toolkit/patchwork/catalog/device"
 	sc "github.com/patchwork-toolkit/patchwork/catalog/service"
 	"log"
-	"strings"
 )
 
 const (
@@ -51,9 +50,8 @@ func registrationFromConfig(config *Config) *sc.ServiceConfig {
 	serviceConfig.Meta["apiVersion"] = dc.CurrentApiVersion
 
 	// protocols
-	// port from the endpoint, address from the public address
-	parts := strings.Split(config.Endpoint, ":")
-	serviceConfig.Protocols[0].Endpoint["url"] = fmt.Sprintf("http://%s%s:%s", config.Address, dc.CatalogBaseUrl, parts[1])
+	// port from the bind port, address from the public address
+	serviceConfig.Protocols[0].Endpoint["url"] = fmt.Sprintf("http://%s%s:%s", config.Address, dc.CatalogBaseUrl, config.Port)
 
 	return serviceConfig
 }
