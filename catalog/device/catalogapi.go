@@ -37,7 +37,7 @@ type Device struct {
 
 // Read-only catalog api
 type ReadableCatalogAPI struct {
-	catalogStorage *CatalogStorage
+	catalogStorage CatalogStorage
 	contextUrl     string
 }
 
@@ -46,14 +46,14 @@ type WritableCatalogAPI struct {
 	*ReadableCatalogAPI
 }
 
-func NewReadableCatalogAPI(storage *CatalogStorage, contextUrl string) *ReadableCatalogAPI {
+func NewReadableCatalogAPI(storage CatalogStorage, contextUrl string) *ReadableCatalogAPI {
 	return &ReadableCatalogAPI{
 		catalogStorage: storage,
 		contextUrl:     contextUrl,
 	}
 }
 
-func NewWritableCatalogAPI(storage *CatalogStorage, contextUrl string) *WritableCatalogAPI {
+func NewWritableCatalogAPI(storage CatalogStorage, contextUrl string) *WritableCatalogAPI {
 	return &WritableCatalogAPI{
 		&ReadableCatalogAPI{
 			catalogStorage: storage,
@@ -95,7 +95,7 @@ func (self *Resource) unLdify() Resource {
 
 func (self ReadableCatalogAPI) collectionFromRegistrations(registrations []Registration) *Collection {
 	devices := make(map[string]Registration)
-	resources := make([]Resource, 0, self.catalogStorage.getTotalResourcesCount())
+	resources := make([]Resource, 0, self.catalogStorage.getResourcesCount())
 
 	for _, reg := range registrations {
 		regld := reg.ldify()
@@ -118,7 +118,7 @@ func (self ReadableCatalogAPI) collectionFromRegistrations(registrations []Regis
 
 // NOTE: this is inefficient, might need to reconsider how we return resources filter/query
 func (self ReadableCatalogAPI) collectionFromResources(resources []Resource) *Collection {
-	// registrations := make([]Registration, 0, self.catalogStorage.getTotalRegistrationsCount())
+	// registrations := make([]Registration, 0, self.catalogStorage.getRegistrationsCount())
 	// added := make(map[string]struct{})
 	// for _, res := range resources {
 	// 	// skip already encountered devices
@@ -132,7 +132,6 @@ func (self ReadableCatalogAPI) collectionFromResources(resources []Resource) *Co
 	// return self.collectionFromRegistrations(registrations)
 	devices := make(map[string]Registration)
 	resourcesld := make([]Resource, 0, len(resources))
-	// resources := make([]Resource, 0, self.catalogStorage.getTotalResourcesCount())
 	for _, res := range resources {
 		resld := res.ldify()
 		resourcesld = append(resourcesld, resld)
@@ -157,7 +156,7 @@ func (self ReadableCatalogAPI) collectionFromResources(resources []Resource) *Co
 }
 
 func (self ReadableCatalogAPI) List(w http.ResponseWriter, req *http.Request) {
-	registrations := self.catalogStorage.getAll()
+	registrations, _ := self.catalogStorage.getAll()
 	coll := self.collectionFromRegistrations(registrations)
 
 	b, _ := json.Marshal(coll)
@@ -177,7 +176,7 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 
 	switch ftype {
 	case FTypeRegistration:
-		data, err = self.catalogStorage.getRegistrationByPath(fpath, fop, fvalue)
+		data, err = self.catalogStorage.pathFilterRegistration(fpath, fop, fvalue)
 		if data.(Registration).Id != "" {
 			reg := data.(Registration)
 			data = reg.ldify()
@@ -185,14 +184,14 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 		}
 
 	case FTypeRegistrations:
-		data, err = self.catalogStorage.getRegistrationsByPath(fpath, fop, fvalue)
+		data, err = self.catalogStorage.pathFilterRegistrations(fpath, fop, fvalue)
 		if len(data.([]Registration)) > 0 {
 			data = self.collectionFromRegistrations(data.([]Registration))
 			matched = true
 		}
 
 	case FTypeResource:
-		data, err = self.catalogStorage.getResourceByPath(fpath, fop, fvalue)
+		data, err = self.catalogStorage.pathFilterResource(fpath, fop, fvalue)
 		if data.(Resource).Id != "" {
 			res := data.(Resource)
 			data = res.ldify()
@@ -200,7 +199,7 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 		}
 
 	case FTypeResources:
-		data, err = self.catalogStorage.getResourcesByPath(fpath, fop, fvalue)
+		data, err = self.catalogStorage.pathFilterResources(fpath, fop, fvalue)
 		if len(data.([]Resource)) > 0 {
 			data = self.collectionFromResources(data.([]Resource))
 			matched = true
@@ -253,7 +252,7 @@ func (self ReadableCatalogAPI) GetResource(w http.ResponseWriter, req *http.Requ
 	}
 
 	// check if it has a resource regid
-	rs, err := r.GetResourceByName(resname)
+	rs, err := r.getResourceByName(resname)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Resource not found\n")

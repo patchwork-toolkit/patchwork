@@ -13,6 +13,7 @@ type Config struct {
 	Port           int              `json:"port"`
 	DnssdEnabled   bool             `json:"dnssdEnabled"`
 	StaticDir      string           `json:"staticDir"`
+	Storage        string           `json:"storage"`
 	ServiceCatalog []ServiceCatalog `json:"serviceCatalog"`
 }
 

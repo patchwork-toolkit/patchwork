@@ -67,6 +67,7 @@ func registerService(config *Config) {
 		} else {
 			// Register in the catalog specified by endpoint
 			registrator := sc.NewRegistrator(cat.Endpoint)
+			log.Printf("Registering in the Service Catalog at %s\n", cat.Endpoint)
 
 			// Set TTL
 			serviceConfig.Ttl = cat.Ttl

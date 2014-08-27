@@ -1,7 +1,7 @@
 package device
 
 type LocalCatalogClient struct {
-	localStorage *CatalogStorage
+	localStorage CatalogStorage
 }
 
 func (self *LocalCatalogClient) Add(r Registration) (Registration, error) {
@@ -23,10 +23,10 @@ func (self *LocalCatalogClient) Get(id string) (Registration, error) {
 }
 
 func (self *LocalCatalogClient) GetAll() ([]Registration, error) {
-	return self.localStorage.getAll(), nil
+	return self.localStorage.getAll()
 }
 
-func NewLocalCatalogClient(storage *CatalogStorage) *LocalCatalogClient {
+func NewLocalCatalogClient(storage CatalogStorage) *LocalCatalogClient {
 	return &LocalCatalogClient{
 		localStorage: storage,
 	}

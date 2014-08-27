@@ -12,6 +12,10 @@ import (
 	"strings"
 )
 
+const (
+	CatalogBackendMemory = "memory"
+)
+
 var (
 	confPath  = flag.String("conf", "conf/service-catalog.json", "Service catalog configuration file path")
 	staticDir = ""
@@ -41,10 +45,12 @@ func main() {
 	staticDir = config.StaticDir
 
 	var cat catalog.CatalogStorage
+
 	switch config.Storage {
-	case "memory":
+	case CatalogBackendMemory:
 		cat = catalog.NewCatalogMemoryStorage()
 	}
+
 	api := catalog.NewWritableCatalogAPI(cat, "/static/ctx/catalog.jsonld")
 
 	m := pat.New()

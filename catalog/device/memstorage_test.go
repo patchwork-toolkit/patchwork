@@ -5,15 +5,15 @@ import (
 	"testing"
 )
 
-func TestNewCatalogStorage(t *testing.T) {
-	storage := NewCatalogStorage()
+func TestNewCatalogMemoryStorage(t *testing.T) {
+	storage := NewCatalogMemoryStorage()
 	if storage == nil {
 		t.Fail()
 	}
 }
 
 func TestNewLocalCatalogClient(t *testing.T) {
-	storage := NewCatalogStorage()
+	storage := NewCatalogMemoryStorage()
 	catalogClient := NewLocalCatalogClient(storage)
 	if catalogClient == nil {
 		t.Fail()
@@ -24,9 +24,9 @@ func TestAddRegistration(t *testing.T) {
 	r := &Registration{}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
 	r.Id = uuid + "/" + "DeviceName"
-	storage := NewCatalogStorage()
-	catalogClient := NewLocalCatalogClient(storage)
-	ra, err := catalogClient.Add(*r)
+
+	storage := NewCatalogMemoryStorage()
+	ra, err := storage.add(*r)
 	if err != nil {
 		t.Errorf("Received unexpected error: %v", err.Error())
 	}
@@ -45,9 +45,9 @@ func TestUpdateRegistration(t *testing.T) {
 	r := &Registration{}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
 	r.Id = uuid + "/" + "DeviceName"
-	storage := NewCatalogStorage()
-	catalogClient := NewLocalCatalogClient(storage)
-	ra, err := catalogClient.Add(*r)
+	storage := NewCatalogMemoryStorage()
+
+	ra, err := storage.add(*r)
 	if err != nil {
 		t.Errorf("Unexpected error on add: %v", err.Error())
 	}
@@ -58,7 +58,7 @@ func TestUpdateRegistration(t *testing.T) {
 		t.Fail()
 	}
 
-	ru, err := catalogClient.Update(ra.Id, ra)
+	ru, err := storage.update(ra.Id, ra)
 	if err != nil {
 		t.Error("Unexpected error on update: %v", err.Error())
 	}
@@ -74,9 +74,9 @@ func TestGetRegistration(t *testing.T) {
 	}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
 	r.Id = uuid + "/" + "DeviceName"
-	storage := NewCatalogStorage()
-	catalogClient := NewLocalCatalogClient(storage)
-	ra, err := catalogClient.Add(*r)
+	storage := NewCatalogMemoryStorage()
+
+	ra, err := storage.add(*r)
 	if err != nil {
 		t.Errorf("Unexpected error on add: %v", err.Error())
 	}
@@ -86,7 +86,7 @@ func TestGetRegistration(t *testing.T) {
 		t.Fail()
 	}
 
-	rg, err := catalogClient.Get(ra.Id)
+	rg, err := storage.get(ra.Id)
 	if err != nil {
 		t.Error("Unexpected error on get: %v", err.Error())
 	}
@@ -100,9 +100,9 @@ func TestDeleteRegistration(t *testing.T) {
 	r := &Registration{}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
 	r.Id = uuid + "/" + "DeviceName"
-	storage := NewCatalogStorage()
-	catalogClient := NewLocalCatalogClient(storage)
-	ra, err := catalogClient.Add(*r)
+	storage := NewCatalogMemoryStorage()
+
+	ra, err := storage.add(*r)
 	if err != nil {
 		t.Errorf("Unexpected error on add: %v", err.Error())
 	}
@@ -112,12 +112,12 @@ func TestDeleteRegistration(t *testing.T) {
 		t.Fail()
 	}
 
-	_, err = catalogClient.Delete(ra.Id)
+	_, err = storage.delete(ra.Id)
 	if err != nil {
 		t.Error("Unexpected error on delete: %v", err.Error())
 	}
 
-	rd, err := catalogClient.Delete(ra.Id)
+	rd, err := storage.delete(ra.Id)
 	if err != nil {
 		t.Error("Unexpected error on delete: %v", err.Error())
 	}
