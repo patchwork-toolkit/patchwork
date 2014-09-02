@@ -11,7 +11,7 @@ const (
 	minKeepaliveSec = 5
 )
 
-func registerDevices(config *Config, catalogStorage *catalog.CatalogStorage) {
+func registerDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 	devices := make([]catalog.Registration, 0, len(config.Devices))
 	for _, device := range config.Devices {
 		r := new(catalog.Registration)

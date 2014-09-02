@@ -33,7 +33,7 @@ func newRESTfulAPI(conf *Config, dataCh chan<- DataRequest) *RESTfulAPI {
 	return api
 }
 
-func (self *RESTfulAPI) start(catalogStorage *catalog.CatalogStorage) {
+func (self *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
 	var (
 		restConf Protocol
 		ok       bool
@@ -117,7 +117,7 @@ func (self *RESTfulAPI) mountResources() {
 	}
 }
 
-func (self *RESTfulAPI) mountCatalog(catalogStorage *catalog.CatalogStorage) {
+func (self *RESTfulAPI) mountCatalog(catalogStorage catalog.CatalogStorage) {
 	catalogAPI := catalog.NewReadableCatalogAPI(catalogStorage, "/static/ctx/catalog.jsonld")
 
 	self.router.Get(fmt.Sprintf("%s/%s/%s/%s/%s",
