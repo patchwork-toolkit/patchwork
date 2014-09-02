@@ -12,7 +12,7 @@ import (
 // In-memory storage
 type MemoryStorage struct {
 	data  map[string]Registration
-	mutex sync.Mutex
+	mutex sync.RWMutex
 }
 
 // CRUD
@@ -77,25 +77,33 @@ func (self *MemoryStorage) delete(id string) (Registration, error) {
 
 // Empty registration and nil error should be interpreted as "not found"
 func (self *MemoryStorage) get(id string) (Registration, error) {
+	self.mutex.RLock()
 	r, ok := self.data[id]
 	if !ok {
+		self.mutex.RUnlock()
 		return r, nil
 	}
+	self.mutex.RUnlock()
 	return r, nil
 }
 
 // Utility
 
 func (self *MemoryStorage) getAll() ([]Registration, error) {
+	self.mutex.RLock()
 	regs := make([]Registration, 0, len(self.data))
 	for _, r := range self.data {
 		regs = append(regs, r)
 	}
+	self.mutex.RUnlock()
 	return regs, nil
 }
 
 func (self *MemoryStorage) getCount() int {
-	return len(self.data)
+	self.mutex.RLock()
+	l := len(self.data)
+	self.mutex.RUnlock()
+	return l
 }
 
 // Clean all remote registrations which expire time is larger than the given timestamp
@@ -116,16 +124,20 @@ func (self *MemoryStorage) pathFilterOne(path string, op string, value string) (
 	var r Registration
 	pathTknz := strings.Split(path, ".")
 
+	self.mutex.RLock()
 	// return the first one found
 	for _, reg := range self.data {
 		matched, err := catalog.MatchObject(reg, pathTknz, op, value)
 		if err != nil {
+			self.mutex.RUnlock()
 			return r, err
 		}
 		if matched {
+			self.mutex.RUnlock()
 			return reg, nil
 		}
 	}
+	self.mutex.RUnlock()
 	return r, nil
 }
 
@@ -134,22 +146,25 @@ func (self *MemoryStorage) pathFilter(path string, op string, value string) ([]R
 	regs := make([]Registration, 0, len(self.data))
 	pathTknz := strings.Split(path, ".")
 
+	self.mutex.RLock()
 	for _, reg := range self.data {
 		matched, err := catalog.MatchObject(reg, pathTknz, op, value)
 		if err != nil {
+			self.mutex.RUnlock()
 			return regs, err
 		}
 		if matched {
 			regs = append(regs, reg)
 		}
 	}
+	self.mutex.RUnlock()
 	return regs, nil
 }
 
 func NewCatalogMemoryStorage() *MemoryStorage {
 	storage := &MemoryStorage{
 		data:  make(map[string]Registration),
-		mutex: sync.Mutex{},
+		mutex: sync.RWMutex{},
 	}
 
 	// schedule cleaner
