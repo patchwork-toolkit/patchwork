@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/patchwork-toolkit/patchwork/catalog"
 	"log"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -12,6 +13,7 @@ import (
 // In-memory storage
 type MemoryStorage struct {
 	data  map[string]Registration
+	index []string
 	mutex sync.RWMutex
 }
 
@@ -29,6 +31,7 @@ func (self *MemoryStorage) add(r Registration) (Registration, error) {
 
 	self.mutex.Lock()
 	self.data[r.Id] = r
+	self.reindexEntries()
 	self.mutex.Unlock()
 
 	return r, nil
@@ -70,6 +73,7 @@ func (self *MemoryStorage) delete(id string) (Registration, error) {
 		return rd, nil
 	}
 	delete(self.data, id)
+	self.reindexEntries()
 	self.mutex.Unlock()
 
 	return rd, nil
@@ -88,6 +92,47 @@ func (self *MemoryStorage) get(id string) (Registration, error) {
 }
 
 // Utility
+
+func (self *MemoryStorage) getMany(page int, perPage int) ([]Registration, int, error) {
+	keys := []string{}
+
+	// Never return more than the defined maximum
+	if perPage > MaxPerPage || perPage == 0 {
+		perPage = MaxPerPage
+	}
+
+	self.mutex.RLock()
+	total := len(self.data)
+
+	// if 1, not specified or negative - return the first page
+	if page < 2 {
+		// first page
+		if perPage > total {
+			keys = self.index
+		} else {
+			keys = self.index[:perPage]
+		}
+	} else if page == int(total/perPage)+1 {
+		// last page
+		keys = self.index[perPage*(page-1):]
+
+	} else if page <= total/perPage && page*perPage <= total {
+		// slice
+		r := page * perPage
+		l := r - perPage
+		keys = self.index[l:r]
+	} else {
+		self.mutex.RUnlock()
+		return []Registration{}, total, nil
+	}
+
+	regs := make([]Registration, 0, len(keys))
+	for _, k := range keys {
+		regs = append(regs, self.data[k])
+	}
+	self.mutex.RUnlock()
+	return regs, total, nil
+}
 
 func (self *MemoryStorage) getAll() ([]Registration, error) {
 	self.mutex.RLock()
@@ -143,10 +188,10 @@ func (self *MemoryStorage) pathFilterOne(path string, op string, value string) (
 
 // Filter multiple registrations
 func (self *MemoryStorage) pathFilter(path string, op string, value string) ([]Registration, error) {
+	self.mutex.RLock()
 	regs := make([]Registration, 0, len(self.data))
 	pathTknz := strings.Split(path, ".")
 
-	self.mutex.RLock()
 	for _, reg := range self.data {
 		matched, err := catalog.MatchObject(reg, pathTknz, op, value)
 		if err != nil {
@@ -161,9 +206,21 @@ func (self *MemoryStorage) pathFilter(path string, op string, value string) ([]R
 	return regs, nil
 }
 
+// Re-index the map entries.
+// WARNING: the caller must obtain the lock before calling
+func (self *MemoryStorage) reindexEntries() {
+	self.index = make([]string, 0, len(self.data))
+	for _, reg := range self.data {
+		self.index = append(self.index, reg.Id)
+	}
+	// sort
+	sort.Strings(self.index)
+}
+
 func NewCatalogMemoryStorage() *MemoryStorage {
 	storage := &MemoryStorage{
 		data:  make(map[string]Registration),
+		index: []string{},
 		mutex: sync.RWMutex{},
 	}
 

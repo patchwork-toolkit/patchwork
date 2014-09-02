@@ -7,6 +7,7 @@ import (
 const (
 	CatalogBaseUrl   = "/sc"
 	DnssdServiceType = "_patchwork-sc._tcp"
+	MaxPerPage       = 100
 )
 
 // Structs
@@ -57,6 +58,7 @@ type CatalogStorage interface {
 	get(string) (Registration, error)
 
 	// Utility functions
+	getMany(int, int) ([]Registration, int, error)
 	getAll() ([]Registration, error)
 	getCount() int
 	cleanExpired(time.Time)

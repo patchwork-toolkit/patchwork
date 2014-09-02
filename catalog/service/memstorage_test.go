@@ -116,3 +116,41 @@ func TestDeleteRegistration(t *testing.T) {
 		t.Error("The previous call hasn't deleted the registration?")
 	}
 }
+
+func TestGetManyTegistrations(t *testing.T) {
+	r := &Registration{}
+	storage := NewCatalogMemoryStorage()
+	// Add 10 entries
+	for i := 0; i < 11; i++ {
+		r.Id = "TestID" + "/" + string(i)
+		_, err := storage.add(*r)
+
+		if err != nil {
+			t.Errorf("Unexpected error on add: %v", err.Error())
+		}
+	}
+
+	p1pp2, total, _ := storage.getMany(1, 2)
+	if total != 11 {
+		t.Errorf("Expected total is 11, returned: %v", total)
+	}
+
+	if len(p1pp2) != 2 {
+		t.Errorf("Wrong number of entries: requested page=1 , perPage=2. Expected: 2, returned: %v", len(p1pp2))
+	}
+
+	p2pp2, _, _ := storage.getMany(2, 2)
+	if len(p2pp2) != 2 {
+		t.Errorf("Wrong number of entries: requested page=2 , perPage=2. Expected: 2, returned: %v", len(p2pp2))
+	}
+
+	p2pp5, _, _ := storage.getMany(2, 5)
+	if len(p2pp5) != 5 {
+		t.Errorf("Wrong number of entries: requested page=2 , perPage=5. Expected: 5, returned: %v", len(p2pp5))
+	}
+
+	p4pp3, _, _ := storage.getMany(4, 3)
+	if len(p4pp3) != 2 {
+		t.Errorf("Wrong number of entries: requested page=4 , perPage=3. Expected: 2, returned: %v", len(p4pp3))
+	}
+}

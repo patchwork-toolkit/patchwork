@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -15,6 +16,8 @@ const (
 	PatternFPath       = ":path"
 	PatternFOp         = ":op"
 	PatternFValue      = ":value"
+	GetParamPage       = "page"
+	GetParamPerPage    = "per_page"
 	FTypeRegistration  = "service"
 	FTypeRegistrations = "services"
 	CurrentApiVersion  = "0.1.0"
@@ -25,6 +28,9 @@ type Collection struct {
 	Id       string         `json:"id"`
 	Type     string         `json:"type"`
 	Services []Registration `json:"services"`
+	Page     int            `json:"page"`
+	PerPage  int            `json:"per_page"`
+	Total    int            `json:"total"`
 }
 
 // Read-only catalog api
@@ -65,25 +71,39 @@ func (self *Registration) unLdify() Registration {
 	return rc
 }
 
-func (self ReadableCatalogAPI) collectionFromRegistrations(registrations []Registration) *Collection {
-	services := make([]Registration, 0, self.catalogStorage.getCount())
+func (self ReadableCatalogAPI) collectionFromRegistrations(registrations []Registration, page int, perPage int, total int) *Collection {
+	services := make([]Registration, 0, len(registrations))
 	for _, reg := range registrations {
 		regld := reg.ldify()
 		services = append(services, regld)
 	}
 
-	// TODO: create paged collection if len(entries) > x
 	return &Collection{
 		Context:  self.contextUrl,
 		Id:       CatalogBaseUrl,
 		Type:     "Collection",
 		Services: services,
+		Page:     page,
+		PerPage:  perPage,
+		Total:    total,
 	}
 }
 
 func (self ReadableCatalogAPI) List(w http.ResponseWriter, req *http.Request) {
-	registrations, _ := self.catalogStorage.getAll()
-	coll := self.collectionFromRegistrations(registrations)
+	req.ParseForm()
+	page, _ := strconv.Atoi(req.Form.Get(GetParamPage))
+	perPage, _ := strconv.Atoi(req.Form.Get(GetParamPerPage))
+
+	// use defaults if not specified
+	if page == 0 {
+		page = 1
+	}
+	if perPage == 0 {
+		perPage = MaxPerPage
+	}
+
+	registrations, total, _ := self.catalogStorage.getMany(page, perPage)
+	coll := self.collectionFromRegistrations(registrations, page, perPage, total)
 
 	b, _ := json.Marshal(coll)
 	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
@@ -112,7 +132,8 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 	case FTypeRegistrations:
 		data, err = self.catalogStorage.pathFilter(fpath, fop, fvalue)
 		if len(data.([]Registration)) > 0 {
-			data = self.collectionFromRegistrations(data.([]Registration))
+			// FIXME (affects both dc and sc)
+			data = self.collectionFromRegistrations(data.([]Registration), 0, 0, 0)
 			matched = true
 		}
 	}
