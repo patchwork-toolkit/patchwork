@@ -134,16 +134,6 @@ func (self *MemoryStorage) getMany(page int, perPage int) ([]Registration, int, 
 	return regs, total, nil
 }
 
-func (self *MemoryStorage) getAll() ([]Registration, error) {
-	self.mutex.RLock()
-	regs := make([]Registration, 0, len(self.data))
-	for _, r := range self.data {
-		regs = append(regs, r)
-	}
-	self.mutex.RUnlock()
-	return regs, nil
-}
-
 func (self *MemoryStorage) getCount() int {
 	self.mutex.RLock()
 	l := len(self.data)

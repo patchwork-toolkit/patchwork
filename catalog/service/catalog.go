@@ -59,7 +59,6 @@ type CatalogStorage interface {
 
 	// Utility functions
 	getMany(int, int) ([]Registration, int, error)
-	getAll() ([]Registration, error)
 	getCount() int
 	cleanExpired(time.Time)
 
