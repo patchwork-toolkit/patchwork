@@ -171,6 +171,12 @@ func (self ReadableCatalogAPI) paginatedDeviceFromDevice(d Device, page, perPage
 		l := r - perPage
 		pd.Resources = d.Resources[l:r]
 	}
+
+	for i, r := range pd.Resources {
+		rld := r.ldify()
+		pd.Resources[i] = rld
+	}
+
 	return pd
 }
 
