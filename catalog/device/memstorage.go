@@ -271,7 +271,7 @@ func (self *MemoryStorage) pathFilterDevice(path string, op string, value string
 	// return the first one found
 	for _, d := range self.devices {
 		dev, _ := self.get(d.Id)
-		matched, err := catalog.MatchObject(d, pathTknz, op, value)
+		matched, err := catalog.MatchObject(dev, pathTknz, op, value)
 		if err != nil {
 			self.mutex.RUnlock()
 			return Device{}, err
@@ -292,7 +292,7 @@ func (self *MemoryStorage) pathFilterDevices(path string, op string, value strin
 	devs := make([]Device, 0, len(self.devices))
 	for _, d := range self.devices {
 		dev, _ := self.get(d.Id)
-		matched, err := catalog.MatchObject(d, pathTknz, op, value)
+		matched, err := catalog.MatchObject(dev, pathTknz, op, value)
 		if err != nil {
 			self.mutex.RUnlock()
 			return devs, err

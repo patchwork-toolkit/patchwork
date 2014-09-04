@@ -209,6 +209,18 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 	fop := req.URL.Query().Get(PatternFOp)
 	fvalue := req.URL.Query().Get(PatternFValue)
 
+	req.ParseForm()
+	page, _ := strconv.Atoi(req.Form.Get(GetParamPage))
+	perPage, _ := strconv.Atoi(req.Form.Get(GetParamPerPage))
+
+	// use defaults if not specified
+	if page == 0 {
+		page = 1
+	}
+	if perPage == 0 {
+		perPage = MaxPerPage
+	}
+
 	var data interface{}
 	var err error
 	matched := false
@@ -217,15 +229,14 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 	case FTypeDevice:
 		data, err = self.catalogStorage.pathFilterDevice(fpath, fop, fvalue)
 		if data.(Device).Id != "" {
-			d := data.(Device)
-			data = d.ldify()
+			data = self.paginatedDeviceFromDevice(data.(Device), page, perPage)
 			matched = true
 		}
 
 	case FTypeDevices:
 		data, err = self.catalogStorage.pathFilterDevices(fpath, fop, fvalue)
 		if len(data.([]Device)) > 0 {
-			data = self.collectionFromDevices(data.([]Device), 0, 0, 0) //FIXME
+			data = self.collectionFromDevices(data.([]Device), page, perPage, len(data.([]Device)))
 			matched = true
 		}
 
@@ -241,7 +252,7 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 		data, err = self.catalogStorage.pathFilterResources(fpath, fop, fvalue)
 		if len(data.([]Resource)) > 0 {
 			devs := self.catalogStorage.devicesFromResources(data.([]Resource))
-			data = self.collectionFromDevices(devs, 0, 0, 0) //FIXME
+			data = self.collectionFromDevices(devs, page, perPage, len(devs))
 			matched = true
 		}
 	}
