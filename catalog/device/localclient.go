@@ -4,26 +4,26 @@ type LocalCatalogClient struct {
 	localStorage CatalogStorage
 }
 
-func (self *LocalCatalogClient) Add(r Registration) (Registration, error) {
+func (self *LocalCatalogClient) Add(r Device) (Device, error) {
 	// set ttl to -1
 	r.Ttl = -1
 	return self.localStorage.add(r)
 }
 
-func (self *LocalCatalogClient) Update(id string, r Registration) (Registration, error) {
+func (self *LocalCatalogClient) Update(id string, r Device) (Device, error) {
 	return self.localStorage.update(id, r)
 }
 
-func (self *LocalCatalogClient) Delete(id string) (Registration, error) {
+func (self *LocalCatalogClient) Delete(id string) (Device, error) {
 	return self.localStorage.delete(id)
 }
 
-func (self *LocalCatalogClient) Get(id string) (Registration, error) {
+func (self *LocalCatalogClient) Get(id string) (Device, error) {
 	return self.localStorage.get(id)
 }
 
-func (self *LocalCatalogClient) GetAll() ([]Registration, error) {
-	return self.localStorage.getAll()
+func (self *LocalCatalogClient) GetMany(page int, perPage int) ([]Device, int, error) {
+	return self.localStorage.getMany(page, perPage)
 }
 
 func NewLocalCatalogClient(storage CatalogStorage) *LocalCatalogClient {

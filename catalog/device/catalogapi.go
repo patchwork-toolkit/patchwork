@@ -5,34 +5,52 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
 const (
-	PatternReg         = ":regid"
-	PatternRes         = ":resname"
-	PatternUuid        = ":uuid"
-	PatternFType       = ":type"
-	PatternFPath       = ":path"
-	PatternFOp         = ":op"
-	PatternFValue      = ":value"
-	FTypeRegistration  = "device"
-	FTypeRegistrations = "devices"
-	FTypeResource      = "resource"
-	FTypeResources     = "resources"
-	CurrentApiVersion  = "0.2.1"
+	PatternReg        = ":regid"
+	PatternRes        = ":resname"
+	PatternUuid       = ":uuid"
+	PatternFType      = ":type"
+	PatternFPath      = ":path"
+	PatternFOp        = ":op"
+	PatternFValue     = ":value"
+	FTypeDevice       = "device"
+	FTypeDevices      = "devices"
+	FTypeResource     = "resource"
+	FTypeResources    = "resources"
+	GetParamPage      = "page"
+	GetParamPerPage   = "per_page"
+	CollectionType    = "DeviceCatalog"
+	CurrentApiVersion = "0.2.1"
 )
 
 type Collection struct {
-	Context   string                  `json:"@context,omitempty"`
-	Id        string                  `json:"id"`
-	Type      string                  `json:"type"`
-	Devices   map[string]Registration `json:"devices"`
-	Resources []Resource              `json:"resources"`
+	Context   string                 `json:"@context,omitempty"`
+	Id        string                 `json:"id"`
+	Type      string                 `json:"type"`
+	Devices   map[string]EmptyDevice `json:"devices"`
+	Resources []Resource             `json:"resources"`
+	Page      int                    `json:"page"`
+	PerPage   int                    `json:"per_page"`
+	Total     int                    `json:"total"`
 }
 
-// Registration without resources
-type Device struct {
+// Device object with empty resources
+type EmptyDevice struct {
+	*Device
+	Resources []Resource `json:"resources,omitempty"`
+}
+
+// Device object with paginated resources
+type PaginatedDevice struct {
+	*Device
+	Resources []Resource `json:"resources"`
+	Page      int        `json:"page"`
+	PerPage   int        `json:"per_page"`
+	Total     int        `json:"total"`
 }
 
 // Read-only catalog api
@@ -61,7 +79,7 @@ func NewWritableCatalogAPI(storage CatalogStorage, contextUrl string) *WritableC
 		}}
 }
 
-func (self *Registration) ldify() Registration {
+func (self *Device) ldify() Device {
 	rc := self.copy()
 	for i, res := range rc.Resources {
 		rc.Resources[i] = res.ldify()
@@ -77,7 +95,7 @@ func (self *Resource) ldify() Resource {
 	return resc
 }
 
-func (self *Registration) unLdify() Registration {
+func (self *Device) unLdify() Device {
 	rc := self.copy()
 	for i, res := range rc.Resources {
 		rc.Resources[i] = res.unLdify()
@@ -93,75 +111,90 @@ func (self *Resource) unLdify() Resource {
 	return resc
 }
 
-func (self ReadableCatalogAPI) collectionFromRegistrations(registrations []Registration) *Collection {
-	devices := make(map[string]Registration)
-	resources := make([]Resource, 0, self.catalogStorage.getResourcesCount())
+func (self ReadableCatalogAPI) collectionFromDevices(devices []Device, page, perPage, total int) *Collection {
+	respDevices := make(map[string]EmptyDevice)
+	respResources := make([]Resource, 0, self.catalogStorage.getResourcesCount())
 
-	for _, reg := range registrations {
-		regld := reg.ldify()
-		for _, res := range regld.Resources {
-			resources = append(resources, res)
+	for _, d := range devices {
+		dld := d.ldify()
+		for _, res := range dld.Resources {
+			respResources = append(respResources, res)
 		}
-		regld.Resources = nil
-		devices[regld.Id] = regld
+
+		respDevices[d.Id] = EmptyDevice{
+			&dld,
+			nil,
+		}
 	}
 
-	// TODO: create paged collection if len(entries) > x
 	return &Collection{
 		Context:   self.contextUrl,
 		Id:        CatalogBaseUrl,
-		Type:      "Collection",
-		Devices:   devices,
-		Resources: resources,
+		Type:      CollectionType,
+		Devices:   respDevices,
+		Resources: respResources,
+		Page:      page,
+		PerPage:   perPage,
+		Total:     total,
 	}
 }
 
-// NOTE: this is inefficient, might need to reconsider how we return resources filter/query
-func (self ReadableCatalogAPI) collectionFromResources(resources []Resource) *Collection {
-	// registrations := make([]Registration, 0, self.catalogStorage.getRegistrationsCount())
-	// added := make(map[string]struct{})
-	// for _, res := range resources {
-	// 	// skip already encountered devices
-	// 	if _, ok := added[res.Device]; !ok {
-	// 		added[res.Device] = struct{}{}
+func (self ReadableCatalogAPI) paginatedDeviceFromDevice(d Device, page, perPage int) *PaginatedDevice {
+	// Never return more than the defined maximum
+	if perPage > MaxPerPage || perPage == 0 {
+		perPage = MaxPerPage
+	}
 
-	// 		reg, _ := self.catalogStorage.get(res.Device)
-	// 		registrations = append(registrations, reg)
-	// 	}
-	// }
-	// return self.collectionFromRegistrations(registrations)
-	devices := make(map[string]Registration)
-	resourcesld := make([]Resource, 0, len(resources))
-	for _, res := range resources {
-		resld := res.ldify()
-		resourcesld = append(resourcesld, resld)
-		// skip already encountered devices
-		if _, ok := devices[res.Device]; !ok {
-			reg, _ := self.catalogStorage.get(res.Device)
-			regld := reg.ldify()
+	pd := &PaginatedDevice{
+		&d,
+		make([]Resource, 0, len(d.Resources)),
+		page,
+		perPage,
+		len(d.Resources),
+	}
 
-			regld.Resources = nil
-			devices[regld.Id] = regld
+	// if 1, not specified or negative - return the first page
+	if page < 2 {
+		// first page
+		if perPage > pd.Total {
+			pd.Resources = d.Resources
+		} else {
+			pd.Resources = d.Resources[:perPage]
 		}
-	}
+	} else if page == int(pd.Total/perPage)+1 {
+		// last page
+		pd.Resources = d.Resources[perPage*(page-1):]
 
-	// TODO: create paged collection if len(entries) > x
-	return &Collection{
-		Context:   self.contextUrl,
-		Id:        CatalogBaseUrl,
-		Type:      "Collection",
-		Devices:   devices,
-		Resources: resourcesld,
+	} else if page <= pd.Total/perPage && page*perPage <= pd.Total {
+		// slice
+		r := page * perPage
+		l := r - perPage
+		pd.Resources = d.Resources[l:r]
 	}
+	return pd
 }
 
 func (self ReadableCatalogAPI) List(w http.ResponseWriter, req *http.Request) {
-	registrations, _ := self.catalogStorage.getAll()
-	coll := self.collectionFromRegistrations(registrations)
+	req.ParseForm()
+	page, _ := strconv.Atoi(req.Form.Get(GetParamPage))
+	perPage, _ := strconv.Atoi(req.Form.Get(GetParamPerPage))
+
+	// use defaults if not specified
+	if page == 0 {
+		page = 1
+	}
+	if perPage == 0 {
+		perPage = MaxPerPage
+	}
+
+	devices, total, _ := self.catalogStorage.getMany(page, perPage)
+	coll := self.collectionFromDevices(devices, page, perPage, total)
 
 	b, _ := json.Marshal(coll)
 	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.Write(b)
+
+	return
 }
 
 func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) {
@@ -175,18 +208,18 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 	matched := false
 
 	switch ftype {
-	case FTypeRegistration:
-		data, err = self.catalogStorage.pathFilterRegistration(fpath, fop, fvalue)
-		if data.(Registration).Id != "" {
-			reg := data.(Registration)
-			data = reg.ldify()
+	case FTypeDevice:
+		data, err = self.catalogStorage.pathFilterDevice(fpath, fop, fvalue)
+		if data.(Device).Id != "" {
+			d := data.(Device)
+			data = d.ldify()
 			matched = true
 		}
 
-	case FTypeRegistrations:
-		data, err = self.catalogStorage.pathFilterRegistrations(fpath, fop, fvalue)
-		if len(data.([]Registration)) > 0 {
-			data = self.collectionFromRegistrations(data.([]Registration))
+	case FTypeDevices:
+		data, err = self.catalogStorage.pathFilterDevices(fpath, fop, fvalue)
+		if len(data.([]Device)) > 0 {
+			data = self.collectionFromDevices(data.([]Device), 0, 0, 0) //FIXME
 			matched = true
 		}
 
@@ -201,7 +234,8 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 	case FTypeResources:
 		data, err = self.catalogStorage.pathFilterResources(fpath, fop, fvalue)
 		if len(data.([]Resource)) > 0 {
-			data = self.collectionFromResources(data.([]Resource))
+			devs := self.catalogStorage.devicesFromResources(data.([]Resource))
+			data = self.collectionFromDevices(devs, 0, 0, 0) //FIXME
 			matched = true
 		}
 	}
@@ -223,16 +257,28 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 }
 
 func (self ReadableCatalogAPI) Get(w http.ResponseWriter, req *http.Request) {
+	req.ParseForm()
+	page, _ := strconv.Atoi(req.Form.Get(GetParamPage))
+	perPage, _ := strconv.Atoi(req.Form.Get(GetParamPerPage))
 	id := fmt.Sprintf("%v/%v", req.URL.Query().Get(PatternUuid), req.URL.Query().Get(PatternReg))
 
-	r, err := self.catalogStorage.get(id)
-	if err != nil || r.Id == "" {
+	d, err := self.catalogStorage.get(id)
+	if err != nil || d.Id == "" {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Registration not found\n")
 		return
 	}
 
-	b, _ := json.Marshal(r.ldify())
+	// use defaults if not specified
+	if page == 0 {
+		page = 1
+	}
+	if perPage == 0 {
+		perPage = MaxPerPage
+	}
+
+	pd := self.paginatedDeviceFromDevice(d, page, perPage)
+	b, _ := json.Marshal(pd)
 
 	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.Write(b)
@@ -240,26 +286,26 @@ func (self ReadableCatalogAPI) Get(w http.ResponseWriter, req *http.Request) {
 }
 
 func (self ReadableCatalogAPI) GetResource(w http.ResponseWriter, req *http.Request) {
-	regid := fmt.Sprintf("%v/%v", req.URL.Query().Get(PatternUuid), req.URL.Query().Get(PatternReg))
-	resname := req.URL.Query().Get(PatternRes)
+	devid := fmt.Sprintf("%v/%v", req.URL.Query().Get(PatternUuid), req.URL.Query().Get(PatternReg))
+	resid := fmt.Sprintf("%v/%v", devid, req.URL.Query().Get(PatternRes))
 
-	// check if registration regid exists
-	r, err := self.catalogStorage.get(regid)
+	// check if device devid exists
+	_, err := self.catalogStorage.get(devid)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Registration not found\n")
+		fmt.Fprintf(w, "Device not found\n")
 		return
 	}
 
-	// check if it has a resource regid
-	rs, err := r.getResourceByName(resname)
+	// check if it has a resource resid
+	res, err := self.catalogStorage.getResourceById(resid)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Resource not found\n")
 		return
 	}
 
-	b, _ := json.Marshal(rs.ldify())
+	b, _ := json.Marshal(res.ldify())
 	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.Write(b)
 	return
@@ -269,22 +315,22 @@ func (self WritableCatalogAPI) Add(w http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
 	req.Body.Close()
 
-	var r Registration
-	err = json.Unmarshal(body, &r)
+	var d Device
+	err = json.Unmarshal(body, &d)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Error processing the request: %s\n", err.Error())
 		return
 	}
 
-	ra, err := self.catalogStorage.add(r)
+	da, err := self.catalogStorage.add(d)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error creating the registration: %s\n", err.Error())
 		return
 	}
 
-	b, _ := json.Marshal(ra.ldify())
+	b, _ := json.Marshal(da.ldify())
 	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.WriteHeader(http.StatusCreated)
 	w.Write(b)
@@ -297,28 +343,28 @@ func (self WritableCatalogAPI) Update(w http.ResponseWriter, req *http.Request) 
 	body, err := ioutil.ReadAll(req.Body)
 	req.Body.Close()
 
-	var r Registration
-	err = json.Unmarshal(body, &r)
+	var d Device
+	err = json.Unmarshal(body, &d)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Error processing the request:: %s\n", err.Error())
 		return
 	}
 
-	ru, err := self.catalogStorage.update(id, r)
+	du, err := self.catalogStorage.update(id, d)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Error updating the registration: %s\n", err.Error())
+		fmt.Fprintf(w, "Error updating the device: %s\n", err.Error())
 		return
 	}
 
-	if ru.Id == "" {
+	if du.Id == "" {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Not found\n")
 		return
 	}
 
-	b, _ := json.Marshal(ru.ldify())
+	b, _ := json.Marshal(du.ldify())
 	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)
@@ -329,20 +375,20 @@ func (self WritableCatalogAPI) Update(w http.ResponseWriter, req *http.Request) 
 func (self WritableCatalogAPI) Delete(w http.ResponseWriter, req *http.Request) {
 	id := fmt.Sprintf("%v/%v", req.URL.Query().Get(PatternUuid), req.URL.Query().Get(PatternReg))
 
-	rd, err := self.catalogStorage.delete(id)
+	dd, err := self.catalogStorage.delete(id)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Error deleting the registration: %s\n", err.Error())
+		fmt.Fprintf(w, "Error deleting the device: %s\n", err.Error())
 		return
 	}
 
-	if rd.Id == "" {
+	if dd.Id == "" {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Not found\n")
 		return
 	}
 
-	b, _ := json.Marshal(rd.ldify())
+	b, _ := json.Marshal(dd.ldify())
 	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)

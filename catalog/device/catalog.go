@@ -1,19 +1,19 @@
 package device
 
 import (
-	"errors"
 	"time"
 )
 
 const (
 	CatalogBaseUrl   = "/dc"
 	DnssdServiceType = "_patchwork-dc._tcp"
+	MaxPerPage       = 100
 )
 
 // Structs
 
-// Registration is a device entry in the catalog
-type Registration struct {
+// Device entry in the catalog
+type Device struct {
 	Id          string                 `json:"id"`
 	Type        string                 `json:"type"`
 	Name        string                 `json:"name"`
@@ -23,20 +23,10 @@ type Registration struct {
 	Created     time.Time              `json:"created"`
 	Updated     time.Time              `json:"updated"`
 	Expires     time.Time              `json:"expires"`
-	Resources   []Resource             `json:"resources,omitempty"`
+	Resources   []Resource             `json:"resources"`
 }
 
-func (self *Registration) getResourceByName(name string) (Resource, error) {
-	var rs Resource
-	for _, res := range self.Resources {
-		if res.Name == name {
-			return res, nil
-		}
-	}
-	return rs, errors.New("Resource not found")
-}
-
-// Resource is a resource exposed by the device
+// Resource exposed by a device
 type Resource struct {
 	Id             string                 `json:"id"`
 	Type           string                 `json:"type"`
@@ -44,17 +34,7 @@ type Resource struct {
 	Meta           map[string]interface{} `json:"meta"`
 	Protocols      []Protocol             `json:"protocols"`
 	Representation map[string]interface{} `json:"representation"`
-	Device         string                 `json:"device,omitempty"` // link to device/registration
-}
-
-// Deep copy of the registration
-func (self *Registration) copy() Registration {
-	var rc Registration
-	rc = *self
-	res := make([]Resource, len(self.Resources))
-	copy(res, self.Resources)
-	rc.Resources = res
-	return rc
+	Device         string                 `json:"device,omitempty"` // link to device
 }
 
 // Protocol describes the resource API
@@ -63,6 +43,16 @@ type Protocol struct {
 	Endpoint     map[string]interface{} `json:"endpoint"`
 	Methods      []string               `json:"methods"`
 	ContentTypes []string               `json:"content-types"`
+}
+
+// Deep copy of the device
+func (self *Device) copy() Device {
+	var dc Device
+	dc = *self
+	res := make([]Resource, len(self.Resources))
+	copy(res, self.Resources)
+	dc.Resources = res
+	return dc
 }
 
 // Deep copy of the resource
@@ -80,29 +70,31 @@ func (self *Resource) copy() Resource {
 // Storage interface
 type CatalogStorage interface {
 	// CRUD
-	add(Registration) (Registration, error)
-	update(string, Registration) (Registration, error)
-	delete(string) (Registration, error)
-	get(string) (Registration, error)
+	add(Device) (Device, error)
+	update(string, Device) (Device, error)
+	delete(string) (Device, error)
+	get(string) (Device, error)
 
 	// Utility functions
-	getAll() ([]Registration, error)
-	getRegistrationsCount() int
+	getMany(int, int) ([]Device, int, error)
+	getDevicesCount() int
 	getResourcesCount() int
+	getResourceById(string) (Resource, error)
+	devicesFromResources([]Resource) []Device
 	cleanExpired(time.Time)
 
 	// Path filtering
-	pathFilterRegistration(string, string, string) (Registration, error)
-	pathFilterRegistrations(string, string, string) ([]Registration, error)
+	pathFilterDevice(string, string, string) (Device, error)
+	pathFilterDevices(string, string, string) ([]Device, error)
 	pathFilterResource(string, string, string) (Resource, error)
 	pathFilterResources(string, string, string) ([]Resource, error)
 }
 
 // Catalog client
 type CatalogClient interface {
-	Get(string) (Registration, error)
-	Add(Registration) (Registration, error)
-	Update(string, Registration) (Registration, error)
-	Delete(string) (Registration, error)
-	GetAll() ([]Registration, error)
+	Get(string) (Device, error)
+	Add(Device) (Device, error)
+	Update(string, Device) (Device, error)
+	Delete(string) (Device, error)
+	GetMany(int, int) ([]Device, int, error)
 }

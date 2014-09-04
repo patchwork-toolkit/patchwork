@@ -12,20 +12,20 @@ type RemoteCatalogClient struct {
 	serverEndpoint string // http://addr:port
 }
 
-func registrationFromResponse(res *http.Response) (Registration, error) {
-	var r Registration
+func deviceFromResponse(res *http.Response) (Device, error) {
+	var d Device
 	body, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
-		return r, err
+		return d, err
 	}
 
-	err = json.Unmarshal(body, &r)
+	err = json.Unmarshal(body, &d)
 	if err != nil {
-		return r, err
+		return d, err
 	}
-	r = r.unLdify()
-	return r, nil
+	d = d.unLdify()
+	return d, nil
 }
 
 func NewRemoteCatalogClient(serverEndpoint string) *RemoteCatalogClient {
@@ -35,92 +35,92 @@ func NewRemoteCatalogClient(serverEndpoint string) *RemoteCatalogClient {
 }
 
 // Empty registration and nil error should be interpreted as "not found"
-func (self *RemoteCatalogClient) Get(id string) (Registration, error) {
+func (self *RemoteCatalogClient) Get(id string) (Device, error) {
 	res, err := http.Get(fmt.Sprintf("%v%v/%v", self.serverEndpoint, CatalogBaseUrl, id))
 	if err != nil {
-		return Registration{}, err
+		return Device{}, err
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return Registration{}, nil
+		return Device{}, nil
 	}
-	return registrationFromResponse(res)
+	return deviceFromResponse(res)
 }
 
-func (self *RemoteCatalogClient) Add(r Registration) (Registration, error) {
-	b, _ := json.Marshal(r)
+func (self *RemoteCatalogClient) Add(d Device) (Device, error) {
+	b, _ := json.Marshal(d)
 	res, err := http.Post(self.serverEndpoint+CatalogBaseUrl+"/", "application/ld+json", bytes.NewReader(b))
 	if err != nil {
-		return Registration{}, err
+		return Device{}, err
 	}
-	return registrationFromResponse(res)
+	return deviceFromResponse(res)
 }
 
 // Empty registration and nil error should be interpreted as "not found"
-func (self *RemoteCatalogClient) Update(id string, r Registration) (Registration, error) {
-	b, _ := json.Marshal(r)
+func (self *RemoteCatalogClient) Update(id string, d Device) (Device, error) {
+	b, _ := json.Marshal(d)
 	req, err := http.NewRequest("PUT", fmt.Sprintf("%v%v/%v", self.serverEndpoint, CatalogBaseUrl, id), bytes.NewReader(b))
 	if err != nil {
-		return Registration{}, err
+		return Device{}, err
 	}
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return Registration{}, err
+		return Device{}, err
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return Registration{}, nil
+		return Device{}, nil
 	}
-	return registrationFromResponse(res)
+	return deviceFromResponse(res)
 }
 
 // Empty registration and nil error should be interpreted as "not found"
-func (self *RemoteCatalogClient) Delete(id string) (Registration, error) {
+func (self *RemoteCatalogClient) Delete(id string) (Device, error) {
 	req, err := http.NewRequest("DELETE", fmt.Sprintf("%v%v/%v", self.serverEndpoint, CatalogBaseUrl, id), bytes.NewReader([]byte{}))
 	if err != nil {
-		return Registration{}, err
+		return Device{}, err
 	}
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return Registration{}, err
+		return Device{}, err
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return Registration{}, nil
+		return Device{}, nil
 	}
 
-	return registrationFromResponse(res)
+	return deviceFromResponse(res)
 }
 
-func (self *RemoteCatalogClient) GetAll() ([]Registration, error) {
+func (self *RemoteCatalogClient) GetMany(page int, perPage int) ([]Device, int, error) {
 	res, err := http.Get(self.serverEndpoint + CatalogBaseUrl)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	var coll Collection
 	err = json.Unmarshal(body, &coll)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
-	regs := make([]Registration, 0, len(coll.Devices))
+	devs := make([]Device, 0, len(coll.Devices))
 	for k, v := range coll.Devices {
-		reg := v
+		d := *v.Device
 		for _, res := range coll.Resources {
 			if res.Device == k {
-				reg.Resources = append(reg.Resources, res)
+				d.Resources = append(d.Resources, res)
 			}
 		}
-		regs = append(regs, reg)
+		devs = append(devs, d)
 	}
-	return regs, nil
+	return devs, len(coll.Devices), nil
 }

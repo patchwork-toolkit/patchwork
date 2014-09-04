@@ -12,9 +12,9 @@ const (
 )
 
 func registerDevices(config *Config, catalogStorage catalog.CatalogStorage) {
-	devices := make([]catalog.Registration, 0, len(config.Devices))
+	devices := make([]catalog.Device, 0, len(config.Devices))
 	for _, device := range config.Devices {
-		r := new(catalog.Registration)
+		r := new(catalog.Device)
 		r.Type = "Device"
 		r.Ttl = device.Ttl
 		r.Name = device.Name
@@ -75,7 +75,7 @@ func registerDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 }
 
 // Publishes local catalog to another (e.g., global) catalog
-func publishRegistrations(catalogClient catalog.CatalogClient, registrations []catalog.Registration, keepalive bool) {
+func publishRegistrations(catalogClient catalog.CatalogClient, registrations []catalog.Device, keepalive bool) {
 	for _, lr := range registrations {
 		rr, err := catalogClient.Get(lr.Id)
 		if err != nil {
@@ -120,7 +120,7 @@ func publishRegistrations(catalogClient catalog.CatalogClient, registrations []c
 	}
 }
 
-func keepRegistrationAlive(delay time.Duration, client catalog.CatalogClient, reg catalog.Registration) {
+func keepRegistrationAlive(delay time.Duration, client catalog.CatalogClient, reg catalog.Device) {
 	time.Sleep(delay)
 
 	ru, err := client.Update(reg.Id, reg)
@@ -130,9 +130,9 @@ func keepRegistrationAlive(delay time.Duration, client catalog.CatalogClient, re
 		return
 	}
 
-	// Registration not found in the remote catalog
+	// Device not found in the remote catalog
 	if ru.Id == "" {
-		log.Printf("Registration %v not found in the remote catalog. TTL expired?", reg.Id)
+		log.Printf("Device %v not found in the remote catalog. TTL expired?", reg.Id)
 		ru, err = client.Add(reg)
 		if err != nil {
 			log.Printf("Error accessing the catalog: %v\n", err)
