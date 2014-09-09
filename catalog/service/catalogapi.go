@@ -3,6 +3,7 @@ package service
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/patchwork-toolkit/patchwork/catalog"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -94,6 +95,7 @@ func (self ReadableCatalogAPI) List(w http.ResponseWriter, req *http.Request) {
 	req.ParseForm()
 	page, _ := strconv.Atoi(req.Form.Get(GetParamPage))
 	perPage, _ := strconv.Atoi(req.Form.Get(GetParamPerPage))
+	page, perPage = catalog.ValidatePagingParams(page, perPage, MaxPerPage)
 
 	services, total, _ := self.catalogStorage.getMany(page, perPage)
 	coll := self.collectionFromServices(services, page, perPage, total)
@@ -112,6 +114,7 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 	req.ParseForm()
 	page, _ := strconv.Atoi(req.Form.Get(GetParamPage))
 	perPage, _ := strconv.Atoi(req.Form.Get(GetParamPerPage))
+	page, perPage = catalog.ValidatePagingParams(page, perPage, MaxPerPage)
 
 	var data interface{}
 	var err error

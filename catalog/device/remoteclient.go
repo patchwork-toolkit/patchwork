@@ -95,7 +95,9 @@ func (self *RemoteCatalogClient) Delete(id string) (Device, error) {
 }
 
 func (self *RemoteCatalogClient) GetMany(page int, perPage int) ([]Device, int, error) {
-	res, err := http.Get(self.serverEndpoint + CatalogBaseUrl)
+	res, err := http.Get(
+		fmt.Sprintf("%s%s?%s=%s&%s=%s",
+			self.serverEndpoint, CatalogBaseUrl, GetParamPage, page, GetParamPerPage, perPage))
 	if err != nil {
 		return nil, 0, err
 	}

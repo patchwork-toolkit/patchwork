@@ -94,27 +94,30 @@ func (self *RemoteCatalogClient) Delete(id string) (Service, error) {
 	return serviceFromResponse(res)
 }
 
-func (self *RemoteCatalogClient) GetAll() ([]Service, error) {
-	res, err := http.Get(self.serverEndpoint + CatalogBaseUrl)
+func (self *RemoteCatalogClient) GetMany(page, perPage int) ([]Service, int, error) {
+	res, err := http.Get(
+		fmt.Sprintf("%s%s?%s=%s&%s=%s",
+			self.serverEndpoint, CatalogBaseUrl, GetParamPage, page, GetParamPerPage, perPage))
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	var coll Collection
 	err = json.Unmarshal(body, &coll)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	svcs := make([]Service, 0, len(coll.Services))
 	for _, v := range coll.Services {
 		svcs = append(svcs, v)
 	}
-	return svcs, nil
+
+	return svcs, len(svcs), nil
 }

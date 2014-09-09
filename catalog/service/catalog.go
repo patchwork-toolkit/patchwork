@@ -73,5 +73,5 @@ type CatalogClient interface {
 	Add(Service) (Service, error)
 	Update(string, Service) (Service, error)
 	Delete(string) (Service, error)
-	GetAll() ([]Service, error)
+	GetMany(int, int) ([]Service, int, error)
 }
