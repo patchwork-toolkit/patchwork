@@ -10,27 +10,28 @@ import (
 )
 
 const (
-	PatternReg         = ":regid"
-	PatternHostid      = ":hostid"
-	PatternFType       = ":type"
-	PatternFPath       = ":path"
-	PatternFOp         = ":op"
-	PatternFValue      = ":value"
-	GetParamPage       = "page"
-	GetParamPerPage    = "per_page"
-	FTypeRegistration  = "service"
-	FTypeRegistrations = "services"
-	CurrentApiVersion  = "0.1.0"
+	PatternReg        = ":regid"
+	PatternHostid     = ":hostid"
+	PatternFType      = ":type"
+	PatternFPath      = ":path"
+	PatternFOp        = ":op"
+	PatternFValue     = ":value"
+	GetParamPage      = "page"
+	GetParamPerPage   = "per_page"
+	FTypeService      = "service"
+	FTypeServices     = "services"
+	CurrentApiVersion = "0.1.0"
+	CollectionType    = "ServiceCatalog"
 )
 
 type Collection struct {
-	Context  string         `json:"@context,omitempty"`
-	Id       string         `json:"id"`
-	Type     string         `json:"type"`
-	Services []Registration `json:"services"`
-	Page     int            `json:"page"`
-	PerPage  int            `json:"per_page"`
-	Total    int            `json:"total"`
+	Context  string    `json:"@context,omitempty"`
+	Id       string    `json:"id"`
+	Type     string    `json:"type"`
+	Services []Service `json:"services"`
+	Page     int       `json:"page"`
+	PerPage  int       `json:"per_page"`
+	Total    int       `json:"total"`
 }
 
 // Read-only catalog api
@@ -59,30 +60,30 @@ func NewWritableCatalogAPI(storage CatalogStorage, contextUrl string) *WritableC
 		}}
 }
 
-func (self *Registration) ldify() Registration {
-	rc := self.copy()
-	rc.Id = fmt.Sprintf("%v/%v", CatalogBaseUrl, self.Id)
-	return rc
+func (self *Service) ldify() Service {
+	sc := self.copy()
+	sc.Id = fmt.Sprintf("%v/%v", CatalogBaseUrl, self.Id)
+	return sc
 }
 
-func (self *Registration) unLdify() Registration {
-	rc := self.copy()
-	rc.Id = strings.TrimPrefix(self.Id, CatalogBaseUrl+"/")
-	return rc
+func (self *Service) unLdify() Service {
+	sc := self.copy()
+	sc.Id = strings.TrimPrefix(self.Id, CatalogBaseUrl+"/")
+	return sc
 }
 
-func (self ReadableCatalogAPI) collectionFromRegistrations(registrations []Registration, page int, perPage int, total int) *Collection {
-	services := make([]Registration, 0, len(registrations))
-	for _, reg := range registrations {
-		regld := reg.ldify()
-		services = append(services, regld)
+func (self ReadableCatalogAPI) collectionFromServices(services []Service, page, perPage, total int) *Collection {
+	respServices := make([]Service, 0, len(services))
+	for _, svc := range services {
+		svcld := svc.ldify()
+		respServices = append(respServices, svcld)
 	}
 
 	return &Collection{
 		Context:  self.contextUrl,
 		Id:       CatalogBaseUrl,
-		Type:     "Collection",
-		Services: services,
+		Type:     CollectionType,
+		Services: respServices,
 		Page:     page,
 		PerPage:  perPage,
 		Total:    total,
@@ -102,8 +103,8 @@ func (self ReadableCatalogAPI) List(w http.ResponseWriter, req *http.Request) {
 		perPage = MaxPerPage
 	}
 
-	registrations, total, _ := self.catalogStorage.getMany(page, perPage)
-	coll := self.collectionFromRegistrations(registrations, page, perPage, total)
+	services, total, _ := self.catalogStorage.getMany(page, perPage)
+	coll := self.collectionFromServices(services, page, perPage, total)
 
 	b, _ := json.Marshal(coll)
 	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
@@ -133,18 +134,18 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 	matched := false
 
 	switch ftype {
-	case FTypeRegistration:
+	case FTypeService:
 		data, err = self.catalogStorage.pathFilterOne(fpath, fop, fvalue)
-		if data.(Registration).Id != "" {
-			reg := data.(Registration)
-			data = reg.ldify()
+		if data.(Service).Id != "" {
+			svc := data.(Service)
+			data = svc.ldify()
 			matched = true
 		}
 
-	case FTypeRegistrations:
+	case FTypeServices:
 		data, err = self.catalogStorage.pathFilter(fpath, fop, fvalue)
-		if len(data.([]Registration)) > 0 {
-			data = self.collectionFromRegistrations(data.([]Registration), page, perPage, len(data.([]Registration)))
+		if len(data.([]Service)) > 0 {
+			data = self.collectionFromServices(data.([]Service), page, perPage, len(data.([]Service)))
 			matched = true
 		}
 	}
@@ -171,7 +172,7 @@ func (self ReadableCatalogAPI) Get(w http.ResponseWriter, req *http.Request) {
 	r, err := self.catalogStorage.get(id)
 	if err != nil || r.Id == "" {
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Registration not found\n")
+		fmt.Fprintf(w, "Service not found\n")
 		return
 	}
 
@@ -186,22 +187,22 @@ func (self WritableCatalogAPI) Add(w http.ResponseWriter, req *http.Request) {
 	body, err := ioutil.ReadAll(req.Body)
 	req.Body.Close()
 
-	var r Registration
-	err = json.Unmarshal(body, &r)
+	var s Service
+	err = json.Unmarshal(body, &s)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Error processing the request: %s\n", err.Error())
 		return
 	}
 
-	ra, err := self.catalogStorage.add(r)
+	sa, err := self.catalogStorage.add(s)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Error creating the registration: %s\n", err.Error())
+		fmt.Fprintf(w, "Error creating the service: %s\n", err.Error())
 		return
 	}
 
-	b, _ := json.Marshal(ra.ldify())
+	b, _ := json.Marshal(sa.ldify())
 	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.WriteHeader(http.StatusCreated)
 	w.Write(b)
@@ -214,28 +215,28 @@ func (self WritableCatalogAPI) Update(w http.ResponseWriter, req *http.Request) 
 	body, err := ioutil.ReadAll(req.Body)
 	req.Body.Close()
 
-	var r Registration
-	err = json.Unmarshal(body, &r)
+	var s Service
+	err = json.Unmarshal(body, &s)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Error processing the request:: %s\n", err.Error())
 		return
 	}
 
-	ru, err := self.catalogStorage.update(id, r)
+	su, err := self.catalogStorage.update(id, s)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error updating the registration: %s\n", err.Error())
 		return
 	}
 
-	if ru.Id == "" {
+	if su.Id == "" {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Not found\n")
 		return
 	}
 
-	b, _ := json.Marshal(ru.ldify())
+	b, _ := json.Marshal(su.ldify())
 	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)
@@ -246,20 +247,20 @@ func (self WritableCatalogAPI) Update(w http.ResponseWriter, req *http.Request) 
 func (self WritableCatalogAPI) Delete(w http.ResponseWriter, req *http.Request) {
 	id := fmt.Sprintf("%v/%v", req.URL.Query().Get(PatternHostid), req.URL.Query().Get(PatternReg))
 
-	rd, err := self.catalogStorage.delete(id)
+	sd, err := self.catalogStorage.delete(id)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error deleting the registration: %s\n", err.Error())
 		return
 	}
 
-	if rd.Id == "" {
+	if sd.Id == "" {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Not found\n")
 		return
 	}
 
-	b, _ := json.Marshal(rd.ldify())
+	b, _ := json.Marshal(sd.ldify())
 	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.WriteHeader(http.StatusOK)
 	w.Write(b)

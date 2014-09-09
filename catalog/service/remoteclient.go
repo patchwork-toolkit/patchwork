@@ -12,20 +12,20 @@ type RemoteCatalogClient struct {
 	serverEndpoint string // http://addr:port
 }
 
-func registrationFromResponse(res *http.Response) (Registration, error) {
-	var r Registration
+func serviceFromResponse(res *http.Response) (Service, error) {
+	var s Service
 	body, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
 	if err != nil {
-		return r, err
+		return s, err
 	}
 
-	err = json.Unmarshal(body, &r)
+	err = json.Unmarshal(body, &s)
 	if err != nil {
-		return r, err
+		return s, err
 	}
-	r = r.unLdify()
-	return r, nil
+	s = s.unLdify()
+	return s, nil
 }
 
 func NewRemoteCatalogClient(serverEndpoint string) *RemoteCatalogClient {
@@ -35,66 +35,66 @@ func NewRemoteCatalogClient(serverEndpoint string) *RemoteCatalogClient {
 }
 
 // Empty registration and nil error should be interpreted as "not found"
-func (self *RemoteCatalogClient) Get(id string) (Registration, error) {
+func (self *RemoteCatalogClient) Get(id string) (Service, error) {
 	res, err := http.Get(fmt.Sprintf("%v%v/%v", self.serverEndpoint, CatalogBaseUrl, id))
 	if err != nil {
-		return Registration{}, err
+		return Service{}, err
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return Registration{}, nil
+		return Service{}, nil
 	}
-	return registrationFromResponse(res)
+	return serviceFromResponse(res)
 }
 
-func (self *RemoteCatalogClient) Add(r Registration) (Registration, error) {
-	b, _ := json.Marshal(r)
+func (self *RemoteCatalogClient) Add(s Service) (Service, error) {
+	b, _ := json.Marshal(s)
 	res, err := http.Post(self.serverEndpoint+CatalogBaseUrl+"/", "application/ld+json", bytes.NewReader(b))
 	if err != nil {
-		return Registration{}, err
+		return Service{}, err
 	}
-	return registrationFromResponse(res)
+	return serviceFromResponse(res)
 }
 
 // Empty registration and nil error should be interpreted as "not found"
-func (self *RemoteCatalogClient) Update(id string, r Registration) (Registration, error) {
-	b, _ := json.Marshal(r)
+func (self *RemoteCatalogClient) Update(id string, s Service) (Service, error) {
+	b, _ := json.Marshal(s)
 	req, err := http.NewRequest("PUT", fmt.Sprintf("%v%v/%v", self.serverEndpoint, CatalogBaseUrl, id), bytes.NewReader(b))
 	if err != nil {
-		return Registration{}, err
+		return Service{}, err
 	}
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return Registration{}, err
+		return Service{}, err
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return Registration{}, nil
+		return Service{}, nil
 	}
-	return registrationFromResponse(res)
+	return serviceFromResponse(res)
 }
 
 // Empty registration and nil error should be interpreted as "not found"
-func (self *RemoteCatalogClient) Delete(id string) (Registration, error) {
+func (self *RemoteCatalogClient) Delete(id string) (Service, error) {
 	req, err := http.NewRequest("DELETE", fmt.Sprintf("%v%v/%v", self.serverEndpoint, CatalogBaseUrl, id), bytes.NewReader([]byte{}))
 	if err != nil {
-		return Registration{}, err
+		return Service{}, err
 	}
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return Registration{}, err
+		return Service{}, err
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return Registration{}, nil
+		return Service{}, nil
 	}
 
-	return registrationFromResponse(res)
+	return serviceFromResponse(res)
 }
 
-func (self *RemoteCatalogClient) GetAll() ([]Registration, error) {
+func (self *RemoteCatalogClient) GetAll() ([]Service, error) {
 	res, err := http.Get(self.serverEndpoint + CatalogBaseUrl)
 	if err != nil {
 		return nil, err
@@ -112,9 +112,9 @@ func (self *RemoteCatalogClient) GetAll() ([]Registration, error) {
 		return nil, err
 	}
 
-	regs := make([]Registration, 0, len(coll.Services))
+	svcs := make([]Service, 0, len(coll.Services))
 	for _, v := range coll.Services {
-		regs = append(regs, v)
+		svcs = append(svcs, v)
 	}
-	return regs, nil
+	return svcs, nil
 }

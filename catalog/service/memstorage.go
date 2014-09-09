@@ -12,34 +12,34 @@ import (
 
 // In-memory storage
 type MemoryStorage struct {
-	data  map[string]Registration
+	data  map[string]Service
 	index []string
 	mutex sync.RWMutex
 }
 
 // CRUD
-func (self *MemoryStorage) add(r Registration) (Registration, error) {
-	if r.Id == "" || len(strings.Split(r.Id, "/")) != 2 {
-		return Registration{}, errors.New("Registration ID has to be <uuid>/<name>")
+func (self *MemoryStorage) add(s Service) (Service, error) {
+	if s.Id == "" || len(strings.Split(s.Id, "/")) != 2 {
+		return Service{}, errors.New("Service ID has to be <uuid>/<name>")
 	}
 
-	r.Created = time.Now()
-	r.Updated = r.Created
-	if r.Ttl >= 0 {
-		r.Expires = r.Created.Add(time.Duration(r.Ttl) * time.Second)
+	s.Created = time.Now()
+	s.Updated = s.Created
+	if s.Ttl >= 0 {
+		s.Expires = s.Created.Add(time.Duration(s.Ttl) * time.Second)
 	}
 
 	self.mutex.Lock()
-	self.data[r.Id] = r
+	self.data[s.Id] = s
 	self.reindexEntries()
 	self.mutex.Unlock()
 
-	return r, nil
+	return s, nil
 }
 
-// Empty registration and nil error should be interpreted as "not found"
-func (self *MemoryStorage) update(id string, r Registration) (Registration, error) {
-	var ru Registration
+// Empty Service and nil error should be interpreted as "not found"
+func (self *MemoryStorage) update(id string, s Service) (Service, error) {
+	var su Service
 
 	self.mutex.Lock()
 
@@ -49,51 +49,51 @@ func (self *MemoryStorage) update(id string, r Registration) (Registration, erro
 		return ru, nil
 	}
 
-	ru.Type = r.Type
-	ru.Name = r.Name
-	ru.Description = r.Description
-	ru.Ttl = r.Ttl
-	ru.Updated = time.Now()
-	if r.Ttl >= 0 {
-		ru.Expires = ru.Updated.Add(time.Duration(r.Ttl) * time.Second)
+	su.Type = s.Type
+	su.Name = s.Name
+	su.Description = s.Description
+	su.Ttl = s.Ttl
+	su.Updated = time.Now()
+	if s.Ttl >= 0 {
+		su.Expires = su.Updated.Add(time.Duration(s.Ttl) * time.Second)
 	}
-	self.data[id] = ru
+	self.data[id] = su
 	self.mutex.Unlock()
 
-	return ru, nil
+	return su, nil
 }
 
-// Empty registration and nil error should be interpreted as "not found"
-func (self *MemoryStorage) delete(id string) (Registration, error) {
+// Empty Service and nil error should be interpreted as "not found"
+func (self *MemoryStorage) delete(id string) (Service, error) {
 	self.mutex.Lock()
 
-	rd, ok := self.data[id]
+	sd, ok := self.data[id]
 	if !ok {
 		self.mutex.Unlock()
-		return rd, nil
+		return sd, nil
 	}
 	delete(self.data, id)
 	self.reindexEntries()
 	self.mutex.Unlock()
 
-	return rd, nil
+	return sd, nil
 }
 
 // Empty registration and nil error should be interpreted as "not found"
-func (self *MemoryStorage) get(id string) (Registration, error) {
+func (self *MemoryStorage) get(id string) (Service, error) {
 	self.mutex.RLock()
-	r, ok := self.data[id]
+	s, ok := self.data[id]
 	if !ok {
 		self.mutex.RUnlock()
-		return r, nil
+		return s, nil
 	}
 	self.mutex.RUnlock()
-	return r, nil
+	return s, nil
 }
 
 // Utility
 
-func (self *MemoryStorage) getMany(page int, perPage int) ([]Registration, int, error) {
+func (self *MemoryStorage) getMany(page int, perPage int) ([]Service, int, error) {
 	keys := []string{}
 
 	// Never return more than the defined maximum
@@ -123,15 +123,15 @@ func (self *MemoryStorage) getMany(page int, perPage int) ([]Registration, int, 
 		keys = self.index[l:r]
 	} else {
 		self.mutex.RUnlock()
-		return []Registration{}, total, nil
+		return []Service{}, total, nil
 	}
 
-	regs := make([]Registration, 0, len(keys))
+	svcs := make([]Service, 0, len(keys))
 	for _, k := range keys {
-		regs = append(regs, self.data[k])
+		svcs = append(svcs, self.data[k])
 	}
 	self.mutex.RUnlock()
-	return regs, total, nil
+	return svcs, total, nil
 }
 
 func (self *MemoryStorage) getCount() int {
@@ -144,8 +144,8 @@ func (self *MemoryStorage) getCount() int {
 // Clean all remote registrations which expire time is larger than the given timestamp
 func (self *MemoryStorage) cleanExpired(timestamp time.Time) {
 	self.mutex.Lock()
-	for id, reg := range self.data {
-		if reg.Ttl >= 0 && !reg.Expires.After(timestamp) {
+	for id, svc := range self.data {
+		if svc.Ttl >= 0 && !svc.Expires.After(timestamp) {
 			log.Printf("In-memory storage cleaner: registration %v has expired\n", id)
 			delete(self.data, id)
 		}
@@ -155,45 +155,44 @@ func (self *MemoryStorage) cleanExpired(timestamp time.Time) {
 
 // Path filtering
 // Filter one registration
-func (self *MemoryStorage) pathFilterOne(path string, op string, value string) (Registration, error) {
-	var r Registration
+func (self *MemoryStorage) pathFilterOne(path string, op string, value string) (Service, error) {
 	pathTknz := strings.Split(path, ".")
 
 	self.mutex.RLock()
 	// return the first one found
-	for _, reg := range self.data {
-		matched, err := catalog.MatchObject(reg, pathTknz, op, value)
+	for _, svc := range self.data {
+		matched, err := catalog.MatchObject(svc, pathTknz, op, value)
 		if err != nil {
 			self.mutex.RUnlock()
-			return r, err
+			return Service{}, err
 		}
 		if matched {
 			self.mutex.RUnlock()
-			return reg, nil
+			return svc, nil
 		}
 	}
 	self.mutex.RUnlock()
-	return r, nil
+	return Service{}, nil
 }
 
 // Filter multiple registrations
-func (self *MemoryStorage) pathFilter(path string, op string, value string) ([]Registration, error) {
+func (self *MemoryStorage) pathFilter(path string, op string, value string) ([]Service, error) {
 	self.mutex.RLock()
-	regs := make([]Registration, 0, len(self.data))
+	svcs := make([]Service, 0, len(self.data))
 	pathTknz := strings.Split(path, ".")
 
-	for _, reg := range self.data {
-		matched, err := catalog.MatchObject(reg, pathTknz, op, value)
+	for _, svc := range self.data {
+		matched, err := catalog.MatchObject(svc, pathTknz, op, value)
 		if err != nil {
 			self.mutex.RUnlock()
-			return regs, err
+			return svcs, err
 		}
 		if matched {
-			regs = append(regs, reg)
+			svcs = append(svcs, svc)
 		}
 	}
 	self.mutex.RUnlock()
-	return regs, nil
+	return svcs, nil
 }
 
 // Re-index the map entries.
@@ -209,7 +208,7 @@ func (self *MemoryStorage) reindexEntries() {
 
 func NewCatalogMemoryStorage() *MemoryStorage {
 	storage := &MemoryStorage{
-		data:  make(map[string]Registration),
+		data:  make(map[string]Service),
 		index: []string{},
 		mutex: sync.RWMutex{},
 	}

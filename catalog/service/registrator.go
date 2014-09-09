@@ -113,8 +113,8 @@ func (self *Registrator) DeregisterService(config *ServiceConfig) error {
 	return nil
 }
 
-func registrationFromConfig(config *ServiceConfig) Registration {
-	reg := Registration{}
+func registrationFromConfig(config *ServiceConfig) Service {
+	reg := Service{}
 	reg.Id = config.Host + "/" + config.Name
 	reg.Type = serviceRegistrationType
 	reg.Name = config.Name
@@ -127,7 +127,7 @@ func registrationFromConfig(config *ServiceConfig) Registration {
 	return reg
 }
 
-func (self *Registrator) keepRegistrationAlive(delay time.Duration, reg Registration) {
+func (self *Registrator) keepRegistrationAlive(delay time.Duration, reg Service) {
 	time.Sleep(delay)
 
 	ru, err := self.client.Update(reg.Id, reg)

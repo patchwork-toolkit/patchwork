@@ -12,8 +12,8 @@ func TestNewCatalogStorage(t *testing.T) {
 	}
 }
 
-func TestAddRegistration(t *testing.T) {
-	r := &Registration{}
+func TestAddService(t *testing.T) {
+	r := &Service{}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
 	r.Id = uuid + "/" + "ServiceName"
 
@@ -23,7 +23,7 @@ func TestAddRegistration(t *testing.T) {
 		t.Errorf("Received unexpected error: %v", err.Error())
 	}
 	if ra.Id == "" {
-		t.Error("Registration's Id should not be empty")
+		t.Error("Service's Id should not be empty")
 	}
 
 	// id should be uuid/<id>
@@ -33,8 +33,8 @@ func TestAddRegistration(t *testing.T) {
 	}
 }
 
-func TestUpdateRegistration(t *testing.T) {
-	r := &Registration{}
+func TestUpdateService(t *testing.T) {
+	r := &Service{}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
 	r.Id = uuid + "/" + "ServiceName"
 
@@ -60,8 +60,8 @@ func TestUpdateRegistration(t *testing.T) {
 	}
 }
 
-func TestGetRegistration(t *testing.T) {
-	r := &Registration{
+func TestGetService(t *testing.T) {
+	r := &Service{
 		Name: "TestName",
 	}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
@@ -88,8 +88,8 @@ func TestGetRegistration(t *testing.T) {
 	}
 }
 
-func TestDeleteRegistration(t *testing.T) {
-	r := &Registration{}
+func TestDeleteService(t *testing.T) {
+	r := &Service{}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
 	r.Id = uuid + "/" + "ServiceName"
 	storage := NewCatalogMemoryStorage()
@@ -113,12 +113,12 @@ func TestDeleteRegistration(t *testing.T) {
 		t.Error("Unexpected error on delete: %v", err.Error())
 	}
 	if rd.Id != "" {
-		t.Error("The previous call hasn't deleted the registration?")
+		t.Error("The previous call hasn't deleted the Service?")
 	}
 }
 
-func TestGetManyTegistrations(t *testing.T) {
-	r := &Registration{}
+func TestGetManyServices(t *testing.T) {
+	r := &Service{}
 	storage := NewCatalogMemoryStorage()
 	// Add 10 entries
 	for i := 0; i < 11; i++ {

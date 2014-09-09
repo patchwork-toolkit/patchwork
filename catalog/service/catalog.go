@@ -12,8 +12,8 @@ const (
 
 // Structs
 
-// Registration is a service entry in the catalog
-type Registration struct {
+// Service is a service entry in the catalog
+type Service struct {
 	Id             string                 `json:"id"`
 	Type           string                 `json:"type"`
 	Name           string                 `json:"name"`
@@ -27,16 +27,16 @@ type Registration struct {
 	Expires        time.Time              `json:"expires"`
 }
 
-// Deep copy of the registration
-func (self *Registration) copy() Registration {
-	var rc Registration
+// Deep copy of the Service
+func (self *Service) copy() Service {
+	var sc Service
 
-	rc = *self
+	sc = *self
 	proto := make([]Protocol, len(self.Protocols))
 	copy(proto, self.Protocols)
-	rc.Protocols = proto
+	sc.Protocols = proto
 
-	return rc
+	return sc
 }
 
 // Protocol describes the service API
@@ -52,26 +52,26 @@ type Protocol struct {
 // Storage interface
 type CatalogStorage interface {
 	// CRUD
-	add(Registration) (Registration, error)
-	update(string, Registration) (Registration, error)
-	delete(string) (Registration, error)
-	get(string) (Registration, error)
+	add(Service) (Service, error)
+	update(string, Service) (Service, error)
+	delete(string) (Service, error)
+	get(string) (Service, error)
 
 	// Utility functions
-	getMany(int, int) ([]Registration, int, error)
+	getMany(int, int) ([]Service, int, error)
 	getCount() int
 	cleanExpired(time.Time)
 
 	// Path filtering
-	pathFilterOne(string, string, string) (Registration, error)
-	pathFilter(string, string, string) ([]Registration, error)
+	pathFilterOne(string, string, string) (Service, error)
+	pathFilter(string, string, string) ([]Service, error)
 }
 
 // Catalog client
 type CatalogClient interface {
-	Get(string) (Registration, error)
-	Add(Registration) (Registration, error)
-	Update(string, Registration) (Registration, error)
-	Delete(string) (Registration, error)
-	GetAll() ([]Registration, error)
+	Get(string) (Service, error)
+	Add(Service) (Service, error)
+	Update(string, Service) (Service, error)
+	Delete(string) (Service, error)
+	GetAll() ([]Service, error)
 }
