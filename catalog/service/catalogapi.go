@@ -116,6 +116,18 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 	fop := req.URL.Query().Get(PatternFOp)
 	fvalue := req.URL.Query().Get(PatternFValue)
 
+	req.ParseForm()
+	page, _ := strconv.Atoi(req.Form.Get(GetParamPage))
+	perPage, _ := strconv.Atoi(req.Form.Get(GetParamPerPage))
+
+	// use defaults if not specified
+	if page == 0 {
+		page = 1
+	}
+	if perPage == 0 {
+		perPage = MaxPerPage
+	}
+
 	var data interface{}
 	var err error
 	matched := false
@@ -132,8 +144,7 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 	case FTypeRegistrations:
 		data, err = self.catalogStorage.pathFilter(fpath, fop, fvalue)
 		if len(data.([]Registration)) > 0 {
-			// FIXME (affects both dc and sc)
-			data = self.collectionFromRegistrations(data.([]Registration), 0, 0, 0)
+			data = self.collectionFromRegistrations(data.([]Registration), page, perPage, len(data.([]Registration)))
 			matched = true
 		}
 	}
