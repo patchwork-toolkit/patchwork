@@ -3,14 +3,7 @@ package catalog
 // Returns a 'slice' of the given slice based on the requested 'page'
 func GetPageOfSlice(slice []string, page, perPage, maxPerPage int) []string {
 	keys := []string{}
-
-	// use defaults if not specified
-	if page == 0 {
-		page = 1
-	}
-	if perPage == 0 {
-		perPage = maxPerPage
-	}
+	page, perPage = ValidatePagingParams(page, perPage, maxPerPage)
 
 	// Never return more than the defined maximum
 	if perPage > maxPerPage || perPage == 0 {
@@ -36,4 +29,16 @@ func GetPageOfSlice(slice []string, page, perPage, maxPerPage int) []string {
 		keys = slice[l:r]
 	}
 	return keys
+}
+
+func ValidatePagingParams(page, perPage, maxPerPage int) (int, int) {
+	// use defaults if not specified
+	if page == 0 {
+		page = 1
+	}
+	if perPage == 0 || perPage > maxPerPage {
+		perPage = maxPerPage
+	}
+
+	return page, perPage
 }

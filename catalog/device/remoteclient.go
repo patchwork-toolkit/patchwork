@@ -120,7 +120,7 @@ func (self *RemoteCatalogClient) GetMany(page int, perPage int) ([]Device, int, 
 				d.Resources = append(d.Resources, res)
 			}
 		}
-		devs = append(devs, d)
+		devs = append(devs, d.unLdify())
 	}
 	return devs, len(coll.Devices), nil
 }

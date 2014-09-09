@@ -85,9 +85,9 @@ type CatalogStorage interface {
 
 	// Path filtering
 	pathFilterDevice(string, string, string) (Device, error)
-	pathFilterDevices(string, string, string) ([]Device, error)
+	pathFilterDevices(string, string, string, int, int) ([]Device, int, error)
 	pathFilterResource(string, string, string) (Resource, error)
-	pathFilterResources(string, string, string) ([]Resource, error)
+	pathFilterResources(string, string, string, int, int) ([]Resource, int, error)
 }
 
 // Catalog client

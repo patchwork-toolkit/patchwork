@@ -3,6 +3,7 @@ package device
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/patchwork-toolkit/patchwork/catalog"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -140,11 +141,6 @@ func (self ReadableCatalogAPI) collectionFromDevices(devices []Device, page, per
 }
 
 func (self ReadableCatalogAPI) paginatedDeviceFromDevice(d Device, page, perPage int) *PaginatedDevice {
-	// Never return more than the defined maximum
-	if perPage > MaxPerPage || perPage == 0 {
-		perPage = MaxPerPage
-	}
-
 	pd := &PaginatedDevice{
 		&d,
 		make([]Resource, 0, len(d.Resources)),
@@ -153,28 +149,19 @@ func (self ReadableCatalogAPI) paginatedDeviceFromDevice(d Device, page, perPage
 		len(d.Resources),
 	}
 
-	// if 1, not specified or negative - return the first page
-	if page < 2 {
-		// first page
-		if perPage > pd.Total {
-			pd.Resources = d.Resources
-		} else {
-			pd.Resources = d.Resources[:perPage]
-		}
-	} else if page == int(pd.Total/perPage)+1 {
-		// last page
-		pd.Resources = d.Resources[perPage*(page-1):]
-
-	} else if page <= pd.Total/perPage && page*perPage <= pd.Total {
-		// slice
-		r := page * perPage
-		l := r - perPage
-		pd.Resources = d.Resources[l:r]
+	resourceIds := make([]string, 0, len(d.Resources))
+	for _, r := range d.Resources {
+		resourceIds = append(resourceIds, r.Id)
 	}
 
-	for i, r := range pd.Resources {
-		rld := r.ldify()
-		pd.Resources[i] = rld
+	pageResourceIds := catalog.GetPageOfSlice(resourceIds, page, perPage, MaxPerPage)
+	fmt.Println(pageResourceIds)
+	for _, id := range pageResourceIds {
+		for _, r := range d.Resources {
+			if r.Id == id {
+				pd.Resources = append(pd.Resources, r.ldify())
+			}
+		}
 	}
 
 	return pd
@@ -184,14 +171,7 @@ func (self ReadableCatalogAPI) List(w http.ResponseWriter, req *http.Request) {
 	req.ParseForm()
 	page, _ := strconv.Atoi(req.Form.Get(GetParamPage))
 	perPage, _ := strconv.Atoi(req.Form.Get(GetParamPerPage))
-
-	// use defaults if not specified
-	if page == 0 {
-		page = 1
-	}
-	if perPage == 0 {
-		perPage = MaxPerPage
-	}
+	page, perPage = catalog.ValidatePagingParams(page, perPage, MaxPerPage)
 
 	devices, total, _ := self.catalogStorage.getMany(page, perPage)
 	coll := self.collectionFromDevices(devices, page, perPage, total)
@@ -212,60 +192,41 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 	req.ParseForm()
 	page, _ := strconv.Atoi(req.Form.Get(GetParamPage))
 	perPage, _ := strconv.Atoi(req.Form.Get(GetParamPerPage))
+	page, perPage = catalog.ValidatePagingParams(page, perPage, MaxPerPage)
 
-	// use defaults if not specified
-	if page == 0 {
-		page = 1
-	}
-	if perPage == 0 {
-		perPage = MaxPerPage
-	}
-
-	var data interface{}
-	var err error
-	matched := false
+	var (
+		data  interface{}
+		err   error
+		total int
+	)
 
 	switch ftype {
 	case FTypeDevice:
 		data, err = self.catalogStorage.pathFilterDevice(fpath, fop, fvalue)
 		if data.(Device).Id != "" {
 			data = self.paginatedDeviceFromDevice(data.(Device), page, perPage)
-			matched = true
 		}
 
 	case FTypeDevices:
-		data, err = self.catalogStorage.pathFilterDevices(fpath, fop, fvalue)
-		if len(data.([]Device)) > 0 {
-			data = self.collectionFromDevices(data.([]Device), page, perPage, len(data.([]Device)))
-			matched = true
-		}
+		data, total, err = self.catalogStorage.pathFilterDevices(fpath, fop, fvalue, page, perPage)
+		data = self.collectionFromDevices(data.([]Device), page, perPage, total)
 
 	case FTypeResource:
 		data, err = self.catalogStorage.pathFilterResource(fpath, fop, fvalue)
 		if data.(Resource).Id != "" {
 			res := data.(Resource)
 			data = res.ldify()
-			matched = true
 		}
 
 	case FTypeResources:
-		data, err = self.catalogStorage.pathFilterResources(fpath, fop, fvalue)
-		if len(data.([]Resource)) > 0 {
-			devs := self.catalogStorage.devicesFromResources(data.([]Resource))
-			data = self.collectionFromDevices(devs, page, perPage, len(devs))
-			matched = true
-		}
+		data, total, err = self.catalogStorage.pathFilterResources(fpath, fop, fvalue, page, perPage)
+		devs := self.catalogStorage.devicesFromResources(data.([]Resource))
+		data = self.collectionFromDevices(devs, page, perPage, total)
 	}
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Error processing the request: %s\n", err.Error())
-	}
-
-	if matched == false {
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Not found\n")
-		return
 	}
 
 	b, _ := json.Marshal(data)
@@ -277,6 +238,8 @@ func (self ReadableCatalogAPI) Get(w http.ResponseWriter, req *http.Request) {
 	req.ParseForm()
 	page, _ := strconv.Atoi(req.Form.Get(GetParamPage))
 	perPage, _ := strconv.Atoi(req.Form.Get(GetParamPerPage))
+	page, perPage = catalog.ValidatePagingParams(page, perPage, MaxPerPage)
+
 	id := fmt.Sprintf("%v/%v", req.URL.Query().Get(PatternUuid), req.URL.Query().Get(PatternReg))
 
 	d, err := self.catalogStorage.get(id)
@@ -284,14 +247,6 @@ func (self ReadableCatalogAPI) Get(w http.ResponseWriter, req *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Registration not found\n")
 		return
-	}
-
-	// use defaults if not specified
-	if page == 0 {
-		page = 1
-	}
-	if perPage == 0 {
-		perPage = MaxPerPage
 	}
 
 	pd := self.paginatedDeviceFromDevice(d, page, perPage)

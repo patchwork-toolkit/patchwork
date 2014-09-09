@@ -154,33 +154,11 @@ func (self *MemoryStorage) get(id string) (Device, error) {
 
 // Utility
 func (self *MemoryStorage) getMany(page int, perPage int) ([]Device, int, error) {
-	keys := []string{}
-
-	// Never return more than the defined maximum
-	if perPage > MaxPerPage || perPage == 0 {
-		perPage = MaxPerPage
-	}
-
 	self.mutex.RLock()
+	keys := catalog.GetPageOfSlice(self.index, page, perPage, MaxPerPage)
 	total := len(self.resources)
-	// if 1, not specified or negative - return the first page
-	if page < 2 {
-		// first page
-		if perPage > total {
-			keys = self.index
-		} else {
-			keys = self.index[:perPage]
-		}
-	} else if page == int(total/perPage)+1 {
-		// last page
-		keys = self.index[perPage*(page-1):]
 
-	} else if page <= total/perPage && page*perPage <= total {
-		// slice
-		r := page * perPage
-		l := r - perPage
-		keys = self.index[l:r]
-	} else {
+	if len(keys) == 0 {
 		self.mutex.RUnlock()
 		return []Device{}, total, nil
 	}
@@ -257,6 +235,14 @@ func (self *MemoryStorage) devicesFromResources(resources []Resource) []Device {
 		if !ok {
 			added[did] = true
 			d, _ := self.get(did)
+
+			// only take resources that provided as input
+			d.Resources = nil
+			for _, r2 := range resources {
+				if r2.Device == d.Id {
+					d.Resources = append(d.Resources, r2)
+				}
+			}
 			devs = append(devs, d)
 		}
 	}
@@ -264,7 +250,7 @@ func (self *MemoryStorage) devicesFromResources(resources []Resource) []Device {
 }
 
 // Path filtering
-func (self *MemoryStorage) pathFilterDevice(path string, op string, value string) (Device, error) {
+func (self *MemoryStorage) pathFilterDevice(path, op, value string) (Device, error) {
 	pathTknz := strings.Split(path, ".")
 
 	self.mutex.RLock()
@@ -285,27 +271,40 @@ func (self *MemoryStorage) pathFilterDevice(path string, op string, value string
 	return Device{}, nil
 }
 
-func (self *MemoryStorage) pathFilterDevices(path string, op string, value string) ([]Device, error) {
+func (self *MemoryStorage) pathFilterDevices(path, op, value string, page, perPage int) ([]Device, int, error) {
 	pathTknz := strings.Split(path, ".")
 
 	self.mutex.RLock()
-	devs := make([]Device, 0, len(self.devices))
+	resourceIds := make([]string, 0, len(self.resources))
 	for _, d := range self.devices {
 		dev, _ := self.get(d.Id)
 		matched, err := catalog.MatchObject(dev, pathTknz, op, value)
 		if err != nil {
 			self.mutex.RUnlock()
-			return devs, err
+			return []Device{}, 0, err
 		}
 		if matched {
-			devs = append(devs, dev)
+			// save IDs of all resources of the matched device
+			for _, r := range dev.Resources {
+				resourceIds = append(resourceIds, r.Id)
+			}
 		}
 	}
+
+	// get the slice of resources as indicated by page
+	pageResourceIds := catalog.GetPageOfSlice(resourceIds, page, perPage, MaxPerPage)
+	ress := make([]Resource, 0, len(pageResourceIds))
+	for _, i := range pageResourceIds {
+		ress = append(ress, self.resources[i])
+	}
+
+	// convert to devices
+	devs := self.devicesFromResources(ress)
 	self.mutex.RUnlock()
-	return devs, nil
+	return devs, len(resourceIds), nil
 }
 
-func (self *MemoryStorage) pathFilterResource(path string, op string, value string) (Resource, error) {
+func (self *MemoryStorage) pathFilterResource(path, op, value string) (Resource, error) {
 	pathTknz := strings.Split(path, ".")
 
 	self.mutex.RLock()
@@ -328,23 +327,30 @@ func (self *MemoryStorage) pathFilterResource(path string, op string, value stri
 	return Resource{}, nil
 }
 
-func (self *MemoryStorage) pathFilterResources(path string, op string, value string) ([]Resource, error) {
+func (self *MemoryStorage) pathFilterResources(path, op, value string, page, perPage int) ([]Resource, int, error) {
 	self.mutex.RLock()
-	ress := make([]Resource, 0, len(self.resources))
+	resourceIds := make([]string, 0, len(self.resources))
 	pathTknz := strings.Split(path, ".")
 
 	for _, res := range self.resources {
 		matched, err := catalog.MatchObject(res, pathTknz, op, value)
 		if err != nil {
 			self.mutex.RUnlock()
-			return ress, err
+			return []Resource{}, 0, err
 		}
 		if matched {
-			ress = append(ress, res)
+			resourceIds = append(resourceIds, res.Id)
 		}
 	}
+
+	pageResourceIds := catalog.GetPageOfSlice(resourceIds, page, perPage, MaxPerPage)
+	ress := make([]Resource, 0, len(pageResourceIds))
+	for _, id := range pageResourceIds {
+		ress = append(ress, self.resources[id])
+	}
+
 	self.mutex.RUnlock()
-	return ress, nil
+	return ress, len(resourceIds), nil
 }
 
 func NewCatalogMemoryStorage() *MemoryStorage {
