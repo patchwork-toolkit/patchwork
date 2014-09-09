@@ -95,14 +95,6 @@ func (self ReadableCatalogAPI) List(w http.ResponseWriter, req *http.Request) {
 	page, _ := strconv.Atoi(req.Form.Get(GetParamPage))
 	perPage, _ := strconv.Atoi(req.Form.Get(GetParamPerPage))
 
-	// use defaults if not specified
-	if page == 0 {
-		page = 1
-	}
-	if perPage == 0 {
-		perPage = MaxPerPage
-	}
-
 	services, total, _ := self.catalogStorage.getMany(page, perPage)
 	coll := self.collectionFromServices(services, page, perPage, total)
 
@@ -120,14 +112,6 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 	req.ParseForm()
 	page, _ := strconv.Atoi(req.Form.Get(GetParamPage))
 	perPage, _ := strconv.Atoi(req.Form.Get(GetParamPerPage))
-
-	// use defaults if not specified
-	if page == 0 {
-		page = 1
-	}
-	if perPage == 0 {
-		perPage = MaxPerPage
-	}
 
 	var data interface{}
 	var err error

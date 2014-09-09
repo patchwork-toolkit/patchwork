@@ -96,7 +96,7 @@ func (self *MemoryStorage) get(id string) (Service, error) {
 func (self *MemoryStorage) getMany(page int, perPage int) ([]Service, int, error) {
 	self.mutex.RLock()
 	total := len(self.data)
-	keys := getPageOfSlice(self.index, page, perPage)
+	keys := catalog.GetPageOfSlice(self.index, page, perPage, MaxPerPage)
 
 	if len(keys) == 0 {
 		self.mutex.RUnlock()
@@ -169,7 +169,7 @@ func (self *MemoryStorage) pathFilter(path, op, value string, page, perPage int)
 		}
 	}
 
-	keys := getPageOfSlice(matchedIds, page, perPage)
+	keys := catalog.GetPageOfSlice(matchedIds, page, perPage, MaxPerPage)
 	if len(keys) == 0 {
 		self.mutex.RUnlock()
 		return []Service{}, len(matchedIds), nil
@@ -181,36 +181,6 @@ func (self *MemoryStorage) pathFilter(path, op, value string, page, perPage int)
 	}
 	self.mutex.RUnlock()
 	return svcs, len(matchedIds), nil
-}
-
-func getPageOfSlice(slice []string, page, perPage int) []string {
-	keys := []string{}
-
-	// Never return more than the defined maximum
-	if perPage > MaxPerPage || perPage == 0 {
-		perPage = MaxPerPage
-	}
-
-	// if 1, not specified or negative - return the first page
-	if page < 2 {
-		// first page
-		if perPage > len(slice) {
-			keys = slice
-		} else {
-			keys = slice[:perPage]
-		}
-	} else if page == int(len(slice)/perPage)+1 {
-		// last page
-		keys = slice[perPage*(page-1):]
-
-	} else if page <= len(slice)/perPage && page*perPage <= len(slice) {
-		// slice
-		r := page * perPage
-		l := r - perPage
-		keys = slice[l:r]
-	}
-	return keys
-
 }
 
 // Re-index the map entries.
