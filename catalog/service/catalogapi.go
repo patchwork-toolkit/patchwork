@@ -131,7 +131,6 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 
 	var data interface{}
 	var err error
-	matched := false
 
 	switch ftype {
 	case FTypeService:
@@ -139,26 +138,17 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 		if data.(Service).Id != "" {
 			svc := data.(Service)
 			data = svc.ldify()
-			matched = true
 		}
 
 	case FTypeServices:
-		data, err = self.catalogStorage.pathFilter(fpath, fop, fvalue)
-		if len(data.([]Service)) > 0 {
-			data = self.collectionFromServices(data.([]Service), page, perPage, len(data.([]Service)))
-			matched = true
-		}
+		var total int
+		data, total, err = self.catalogStorage.pathFilter(fpath, fop, fvalue, page, perPage)
+		data = self.collectionFromServices(data.([]Service), page, perPage, total)
 	}
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Error processing the request: %s\n", err.Error())
-	}
-
-	if matched == false {
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Not found\n")
-		return
 	}
 
 	b, _ := json.Marshal(data)

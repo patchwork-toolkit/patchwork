@@ -94,34 +94,11 @@ func (self *MemoryStorage) get(id string) (Service, error) {
 // Utility
 
 func (self *MemoryStorage) getMany(page int, perPage int) ([]Service, int, error) {
-	keys := []string{}
-
-	// Never return more than the defined maximum
-	if perPage > MaxPerPage || perPage == 0 {
-		perPage = MaxPerPage
-	}
-
 	self.mutex.RLock()
 	total := len(self.data)
+	keys := getPageOfSlice(self.index, page, perPage)
 
-	// if 1, not specified or negative - return the first page
-	if page < 2 {
-		// first page
-		if perPage > total {
-			keys = self.index
-		} else {
-			keys = self.index[:perPage]
-		}
-	} else if page == int(total/perPage)+1 {
-		// last page
-		keys = self.index[perPage*(page-1):]
-
-	} else if page <= total/perPage && page*perPage <= total {
-		// slice
-		r := page * perPage
-		l := r - perPage
-		keys = self.index[l:r]
-	} else {
+	if len(keys) == 0 {
 		self.mutex.RUnlock()
 		return []Service{}, total, nil
 	}
@@ -176,23 +153,64 @@ func (self *MemoryStorage) pathFilterOne(path string, op string, value string) (
 }
 
 // Filter multiple registrations
-func (self *MemoryStorage) pathFilter(path string, op string, value string) ([]Service, error) {
-	self.mutex.RLock()
-	svcs := make([]Service, 0, len(self.data))
+func (self *MemoryStorage) pathFilter(path, op, value string, page, perPage int) ([]Service, int, error) {
+	matchedIds := []string{}
 	pathTknz := strings.Split(path, ".")
 
+	self.mutex.RLock()
 	for _, svc := range self.data {
 		matched, err := catalog.MatchObject(svc, pathTknz, op, value)
 		if err != nil {
 			self.mutex.RUnlock()
-			return svcs, err
+			return []Service{}, 0, err
 		}
 		if matched {
-			svcs = append(svcs, svc)
+			matchedIds = append(matchedIds, svc.Id)
 		}
 	}
+
+	keys := getPageOfSlice(matchedIds, page, perPage)
+	if len(keys) == 0 {
+		self.mutex.RUnlock()
+		return []Service{}, len(matchedIds), nil
+	}
+
+	svcs := make([]Service, 0, len(keys))
+	for _, k := range keys {
+		svcs = append(svcs, self.data[k])
+	}
 	self.mutex.RUnlock()
-	return svcs, nil
+	return svcs, len(matchedIds), nil
+}
+
+func getPageOfSlice(slice []string, page, perPage int) []string {
+	keys := []string{}
+
+	// Never return more than the defined maximum
+	if perPage > MaxPerPage || perPage == 0 {
+		perPage = MaxPerPage
+	}
+
+	// if 1, not specified or negative - return the first page
+	if page < 2 {
+		// first page
+		if perPage > len(slice) {
+			keys = slice
+		} else {
+			keys = slice[:perPage]
+		}
+	} else if page == int(len(slice)/perPage)+1 {
+		// last page
+		keys = slice[perPage*(page-1):]
+
+	} else if page <= len(slice)/perPage && page*perPage <= len(slice) {
+		// slice
+		r := page * perPage
+		l := r - perPage
+		keys = slice[l:r]
+	}
+	return keys
+
 }
 
 // Re-index the map entries.
