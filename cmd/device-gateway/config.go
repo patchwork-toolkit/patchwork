@@ -20,28 +20,31 @@ func loadConfig(confPath string) (*Config, error) {
 		return nil, err
 	}
 
-	config := new(Config)
-	err = json.Unmarshal(file, config)
+	rawConfig := new(struct {
+		*Config
+		Protocols map[ProtocolType]json.RawMessage `json:"protocols"`
+	})
+	err = json.Unmarshal(file, rawConfig)
 	if err != nil {
 		return nil, err
 	}
+	config := rawConfig.Config
+	config.Protocols = make(map[ProtocolType]interface{})
 
 	// Parse config protocols
-	for k, v := range config.Protocols {
+	for k, v := range rawConfig.Protocols {
 		switch k {
 		case ProtocolTypeREST:
-			data, _ := json.Marshal(v)
 			protoConf := RestProtocol{}
-			err := json.Unmarshal(data, &protoConf)
+			err := json.Unmarshal(v, &protoConf)
 			if err != nil {
 				return nil, errors.New("Invalid config of REST protocol")
 			}
 			config.Protocols[ProtocolTypeREST] = protoConf
 
 		case ProtocolTypeMQTT:
-			data, _ := json.Marshal(v)
 			protoConf := MqttProtocol{}
-			err := json.Unmarshal(data, &protoConf)
+			err := json.Unmarshal(v, &protoConf)
 			if err != nil {
 				return nil, errors.New("Invalid config of MQTT protocol")
 			}
