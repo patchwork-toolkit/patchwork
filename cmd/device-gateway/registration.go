@@ -13,6 +13,7 @@ const (
 
 func registerDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 	devices := make([]catalog.Device, 0, len(config.Devices))
+	restConfig, _ := config.Protocols[ProtocolTypeREST].(RestProtocol)
 	for _, device := range config.Devices {
 		r := new(catalog.Device)
 		r.Type = "Device"
@@ -40,13 +41,13 @@ func registerDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 				if proto.Type == ProtocolTypeREST {
 					p.Endpoint["url"] = fmt.Sprintf("http://%s:%d%s",
 						config.PublicAddr,
-						config.Protocols[ProtocolTypeREST].BindPort,
-						RestApiBaseUrl+"/"+device.Name+"/"+resource.Name)
+						config.Http.BindPort,
+						restConfig.Location+"/"+device.Name+"/"+resource.Name)
 				} else if proto.Type == ProtocolTypeMQTT {
-					mqtt, ok := config.Protocols[ProtocolTypeMQTT]
+					mqtt, ok := config.Protocols[ProtocolTypeMQTT].(MqttProtocol)
 					if ok {
 						p.Endpoint["broker"] = fmt.Sprintf("tcp://%s:%v", mqtt.Host, mqtt.Port)
-						p.Endpoint["topic"] = fmt.Sprintf("%s/%v", config.Protocols[ProtocolTypeMQTT].Prefix, r.Id)
+						p.Endpoint["topic"] = fmt.Sprintf("%s/%v", mqtt.Prefix, r.Id)
 					}
 				}
 				res.Protocols = append(res.Protocols, *p)

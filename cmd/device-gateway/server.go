@@ -19,34 +19,29 @@ type errorResponse struct {
 }
 
 type RESTfulAPI struct {
-	config *Config
-	router *pat.PatternServeMux
-	dataCh chan<- DataRequest
+	config     *Config
+	restConfig *RestProtocol
+	router     *pat.PatternServeMux
+	dataCh     chan<- DataRequest
 }
 
 func newRESTfulAPI(conf *Config, dataCh chan<- DataRequest) *RESTfulAPI {
+	restConfig, _ := conf.Protocols[ProtocolTypeREST].(RestProtocol)
+
 	api := &RESTfulAPI{
-		config: conf,
-		router: pat.New(),
-		dataCh: dataCh,
+		config:     conf,
+		restConfig: &restConfig,
+		router:     pat.New(),
+		dataCh:     dataCh,
 	}
 	return api
 }
 
 func (self *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
-	var (
-		restConf Protocol
-		ok       bool
-	)
-	if restConf, ok = self.config.Protocols[ProtocolTypeREST]; !ok {
-		log.Printf("RESTfulAPI: Missing configuration section for protocol %s", ProtocolTypeREST)
-		return
-	}
-
 	self.mountCatalog(catalogStorage)
 	self.mountResources()
-	self.router.Get(RestApiBaseUrl, self.indexHandler())
-	self.router.Get("/static/", self.staticHandler())
+	self.router.Get(self.restConfig.Location, self.indexHandler())
+	self.router.Get("/static", self.staticHandler())
 
 	// Mount router to server
 	serverMux := http.NewServeMux()
@@ -59,14 +54,14 @@ func (self *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
 		MaxHeaderBytes: 1 << 20,
 	}
 
-	addr := fmt.Sprintf("%v:%v", restConf.BindAddr, restConf.BindPort)
+	addr := fmt.Sprintf("%v:%v", self.config.Http.BindAddr, self.config.Http.BindPort)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Println(err.Error())
 		return
 	}
 
-	log.Printf("Starting server at http://%v%v", addr, RestApiBaseUrl)
+	log.Printf("Starting server at http://%v%v", addr, self.restConfig.Location)
 
 	err = s.Serve(ln)
 	if err != nil {
@@ -101,7 +96,7 @@ func (self *RESTfulAPI) mountResources() {
 				if protocol.Type != ProtocolTypeREST {
 					continue
 				}
-				uri := RestApiBaseUrl + "/" + device.Name + "/" + resource.Name
+				uri := self.restConfig.Location + "/" + device.Name + "/" + resource.Name
 				log.Println("RESTfulAPI: Mounting resource:", uri)
 				rid := device.ResourceId(resource.Name)
 				for _, method := range protocol.Methods {

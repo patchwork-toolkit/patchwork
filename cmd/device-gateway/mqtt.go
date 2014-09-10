@@ -7,14 +7,14 @@ import (
 )
 
 type MQTTPublisher struct {
-	config *Config
+	config *MqttProtocol
 	client *MQTT.MqttClient
 	dataCh chan AgentResponse
 }
 
 func newMQTTPublisher(conf *Config) *MQTTPublisher {
 	// Check if we need to publish to MQTT
-	mqtt, ok := conf.Protocols[ProtocolTypeMQTT]
+	config, ok := conf.Protocols[ProtocolTypeMQTT].(MqttProtocol)
 	if !ok {
 		return nil
 	}
@@ -45,13 +45,13 @@ func newMQTTPublisher(conf *Config) *MQTTPublisher {
 	}
 
 	// Prepare MQTT connection opts
-	broker := fmt.Sprintf("tcp://%s:%v", mqtt.Host, mqtt.Port)
+	broker := fmt.Sprintf("tcp://%s:%v", config.Host, config.Port)
 	clientId := conf.Id
 	connOpts := MQTT.NewClientOptions().AddBroker(broker).SetClientId(clientId).SetCleanSession(true)
 
 	// Create and return publisher
 	publisher := &MQTTPublisher{
-		config: conf,
+		config: &config,
 		client: MQTT.NewClient(connOpts),
 		dataCh: make(chan AgentResponse),
 	}
@@ -68,14 +68,14 @@ func (self *MQTTPublisher) connect() error {
 	if err != nil {
 		return err
 	}
-	log.Printf("MQTTPublisher: Connected to broker tcp://%s:%v", self.config.Protocols[ProtocolTypeMQTT].Host, self.config.Protocols[ProtocolTypeMQTT].Port)
+	log.Printf("MQTTPublisher: Connected to broker tcp://%s:%v", self.config.Host, self.config.Port)
 	return nil
 }
 
 func (self *MQTTPublisher) start() {
 	log.Println("MQTTPublisher.start()")
 	qos := 1
-	prefix := self.config.Protocols[ProtocolTypeMQTT].Prefix
+	prefix := self.config.Prefix
 	for resp := range self.dataCh {
 		if resp.IsError {
 			log.Println("MQTTPublisher: data ERROR from agent manager:", string(resp.Payload))

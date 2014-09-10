@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -23,6 +24,29 @@ func loadConfig(confPath string) (*Config, error) {
 	err = json.Unmarshal(file, config)
 	if err != nil {
 		return nil, err
+	}
+
+	// Parse config protocols
+	for k, v := range config.Protocols {
+		switch k {
+		case ProtocolTypeREST:
+			data, _ := json.Marshal(v)
+			protoConf := RestProtocol{}
+			err := json.Unmarshal(data, &protoConf)
+			if err != nil {
+				return nil, errors.New("Invalid config of REST protocol")
+			}
+			config.Protocols[ProtocolTypeREST] = protoConf
+
+		case ProtocolTypeMQTT:
+			data, _ := json.Marshal(v)
+			protoConf := MqttProtocol{}
+			err := json.Unmarshal(data, &protoConf)
+			if err != nil {
+				return nil, errors.New("Invalid config of MQTT protocol")
+			}
+			config.Protocols[ProtocolTypeMQTT] = protoConf
+		}
 	}
 
 	dir := filepath.Dir(confPath)
@@ -68,13 +92,14 @@ func loadConfig(confPath string) (*Config, error) {
 // Main configuration container
 //
 type Config struct {
-	Id         string                    `json:"id"`
-	Name       string                    `json:"name"`
-	PublicAddr string                    `json:"publicAddr"`
-	StaticDir  string                    `json:"staticDir`
-	Catalog    []Catalog                 `json:"catalog"`
-	Protocols  map[ProtocolType]Protocol `json:"protocols"`
-	Devices    []Device                  `json:"devices"`
+	Id         string                       `json:"id"`
+	Name       string                       `json:"name"`
+	PublicAddr string                       `json:"publicAddr"`
+	StaticDir  string                       `json:"staticDir`
+	Catalog    []Catalog                    `json:"catalog"`
+	Http       HttpConfig                   `json:"http"`
+	Protocols  map[ProtocolType]interface{} `json:"protocols"`
+	Devices    []Device                     `json:"devices"`
 }
 
 // Validates the loaded configuration
@@ -83,6 +108,13 @@ func (self *Config) Validate() error {
 	//	return fmt.Errorf("Catalog should contain local section")
 	//}
 	//TODO: add more validation rules here
+
+	// Check if REST protocol is configured
+	_, ok := self.Protocols[ProtocolTypeREST]
+	if !ok {
+		return errors.New("Invalid config: REST protocol has to be configured")
+	}
+
 	return nil
 }
 
@@ -102,27 +134,29 @@ func (self *Config) FindResource(resourceId string) (*Resource, bool) {
 // Catalog entry and types
 //
 type Catalog struct {
-	Type     string `json:"type"`
 	Discover bool   `json:"discover"`
 	Endpoint string `json:"endpoint"`
 }
 
-type CatalogType string
-
-const (
-	CatalogTypeLocal  CatalogType = "local"
-	CatalogTypeRemote CatalogType = "remote"
-)
+//
+// Http config (for protocols using it)
+//
+type HttpConfig struct {
+	BindAddr string `json:"bindAddr"`
+	BindPort int    `json:"bindPort"`
+}
 
 //
 // Protocol entry and types
 //
-type Protocol struct {
-	BindAddr string
-	BindPort int
-	Host     string
-	Port     int
-	Prefix   string
+type RestProtocol struct {
+	Location string `json:"location"`
+}
+
+type MqttProtocol struct {
+	Host   string `json:"host"`
+	Port   int    `json:"port"`
+	Prefix string `json:"prefix"`
 }
 
 type ProtocolType string
