@@ -90,9 +90,9 @@ func main() {
 		}
 	*/
 
-	log.Printf("Started standalone Service Catalog at %v:%v%v", config.Host, config.Port, catalog.CatalogBaseUrl)
+	log.Printf("Starting standalone Service Catalog at %v:%v%v", config.BindAddr, config.BindPort, catalog.CatalogBaseUrl)
 
 	// Listen and Serve
-	endpoint := fmt.Sprintf("%v:%v", config.Host, strconv.Itoa(config.Port))
+	endpoint := fmt.Sprintf("%v:%v", config.BindAddr, strconv.Itoa(config.BindPort))
 	log.Fatal(http.ListenAndServe(endpoint, nil))
 }

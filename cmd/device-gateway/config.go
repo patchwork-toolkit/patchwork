@@ -68,13 +68,13 @@ func loadConfig(confPath string) (*Config, error) {
 // Main configuration container
 //
 type Config struct {
-	Id        string                    `json:"id"`
-	Name      string                    `json:"name"`
-	Addr      string                    `json:"addr"`
-	StaticDir string                    `json:"staticDir`
-	Catalog   []Catalog                 `json:"catalog"`
-	Protocols map[ProtocolType]Protocol `json:"protocols"`
-	Devices   []Device                  `json:"devices"`
+	Id         string                    `json:"id"`
+	Name       string                    `json:"name"`
+	PublicAddr string                    `json:"publicAddr"`
+	StaticDir  string                    `json:"staticDir`
+	Catalog    []Catalog                 `json:"catalog"`
+	Protocols  map[ProtocolType]Protocol `json:"protocols"`
+	Devices    []Device                  `json:"devices"`
 }
 
 // Validates the loaded configuration
@@ -118,9 +118,11 @@ const (
 // Protocol entry and types
 //
 type Protocol struct {
-	Host   string
-	Port   int
-	Prefix string
+	BindAddr string
+	BindPort int
+	Host     string
+	Port     int
+	Prefix   string
 }
 
 type ProtocolType string

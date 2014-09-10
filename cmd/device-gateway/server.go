@@ -59,7 +59,7 @@ func (self *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
 		MaxHeaderBytes: 1 << 20,
 	}
 
-	addr := fmt.Sprintf("%v:%v", restConf.Host, restConf.Port)
+	addr := fmt.Sprintf("%v:%v", restConf.BindAddr, restConf.BindPort)
 	ln, err := net.Listen("tcp", addr)
 	if err != nil {
 		log.Println(err.Error())

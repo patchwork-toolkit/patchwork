@@ -94,7 +94,7 @@ func main() {
 		}
 	*/
 
-	log.Printf("Started standalone Device Catalog at %v:%v%v", config.Host, config.Port, catalog.CatalogBaseUrl)
+	log.Printf("Starting standalone Device Catalog at %v:%v%v", config.BindAddr, config.BindPort, catalog.CatalogBaseUrl)
 
 	// Register in Service Catalogs if configured
 	if len(config.ServiceCatalog) > 0 {
@@ -103,6 +103,6 @@ func main() {
 	}
 
 	// Listen and Serve
-	endpoint := fmt.Sprintf("%s:%s", config.Host, strconv.Itoa(config.Port))
+	endpoint := fmt.Sprintf("%s:%s", config.BindAddr, strconv.Itoa(config.BindPort))
 	log.Fatal(http.ListenAndServe(endpoint, nil))
 }

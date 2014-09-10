@@ -9,8 +9,8 @@ import (
 type Config struct {
 	Name         string `json:"name"`
 	DnssdEnabled bool   `json:"dnssdEnabled"`
-	Host         string `json:"host"`
-	Port         int    `json:"port"`
+	BindAddr     string `json:"bindAddr"`
+	BindPort     int    `json:"bindPort"`
 	StaticDir    string `json:"staticDir"`
 	Storage      string `json:"storage"`
 }
@@ -21,7 +21,7 @@ var supportedBackends = map[string]bool{
 
 func (self *Config) Validate() error {
 	var err error
-	if self.Host == "" || self.Port == 0 {
+	if self.BindAddr == "" || self.BindPort == 0 {
 		err = errors.New("Empty host or port")
 	}
 	if !supportedBackends[self.Storage] {

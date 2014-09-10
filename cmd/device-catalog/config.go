@@ -8,9 +8,9 @@ import (
 
 type Config struct {
 	Description    string           `json:"description"`
-	Address        string           `json:"address"`
-	Host           string           `json:"host"`
-	Port           int              `json:"port"`
+	PublicAddr     string           `json:"publicAddr"`
+	BindAddr       string           `json:"bindAddr"`
+	BindPort       int              `json:"bindPort"`
 	DnssdEnabled   bool             `json:"dnssdEnabled"`
 	StaticDir      string           `json:"staticDir"`
 	Storage        string           `json:"storage"`
@@ -24,7 +24,7 @@ type ServiceCatalog struct {
 }
 
 func (self *Config) Validate() error {
-	if self.Host != "" && self.Port > 0 {
+	if self.BindAddr != "" && self.BindPort > 0 {
 		return nil
 	}
 	return errors.New("Invalid config")
