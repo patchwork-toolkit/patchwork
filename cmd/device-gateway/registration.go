@@ -75,7 +75,28 @@ func registerDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 	}
 }
 
-// Publishes local catalog to another (e.g., global) catalog
+func unregisterDevices(config *Config, catalogStorage catalog.CatalogStorage) {
+	devices := make([]catalog.Device, 0, len(config.Devices))
+
+	for _, device := range config.Devices {
+		r := catalog.Device{
+			Id: fmt.Sprintf("%v/%v", config.Id, device.Name),
+		}
+		devices = append(devices, r)
+	}
+
+	for _, cat := range config.Catalog {
+		if cat.Discover == true {
+			//TODO: Catalog discovery
+		} else {
+			log.Printf("Will remove local devices from remote catalog %v\n", cat.Endpoint)
+			remoteCatalogClient := catalog.NewRemoteCatalogClient(cat.Endpoint)
+			removeRegistrations(remoteCatalogClient, devices)
+		}
+	}
+
+}
+
 func publishRegistrations(catalogClient catalog.CatalogClient, registrations []catalog.Device, keepalive bool) {
 	for _, lr := range registrations {
 		rr, err := catalogClient.Get(lr.Id)
@@ -118,6 +139,13 @@ func publishRegistrations(catalogClient catalog.CatalogClient, registrations []c
 			}
 			go keepRegistrationAlive(delay, catalogClient, reg)
 		}
+	}
+}
+
+func removeRegistrations(catalogClient catalog.CatalogClient, registrations []catalog.Device) {
+	for _, r := range registrations {
+		log.Printf("Removing registration %v\n", r.Id)
+		catalogClient.Delete(r.Id)
 	}
 }
 

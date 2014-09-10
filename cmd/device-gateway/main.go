@@ -94,6 +94,10 @@ func main() {
 			dnsRegistration.Stop()
 		}
 	*/
+	// Remove registratoins from configured remote catalogs
+	if len(config.Catalog) > 0 {
+		unregisterDevices(config, catalogStorage)
+	}
 
 	log.Println("Stopped")
 	os.Exit(0)
