@@ -41,7 +41,7 @@ func (self *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
 	self.mountCatalog(catalogStorage)
 	self.mountResources()
 	self.router.Get(self.restConfig.Location, self.indexHandler())
-	self.router.Get("/static", self.staticHandler())
+	self.router.Get("/static/", self.staticHandler())
 
 	// Mount router to server
 	serverMux := http.NewServeMux()
