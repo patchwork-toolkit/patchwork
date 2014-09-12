@@ -243,9 +243,13 @@ func (self ReadableCatalogAPI) Get(w http.ResponseWriter, req *http.Request) {
 	id := fmt.Sprintf("%v/%v", req.URL.Query().Get(PatternUuid), req.URL.Query().Get(PatternReg))
 
 	d, err := self.catalogStorage.get(id)
-	if err != nil || d.Id == "" {
+	if err == ErrorNotFound {
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Registration not found\n")
+		fmt.Fprintf(w, "Device not found\n")
+		return
+	} else if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Error requesting the device: %s\n", err.Error())
 		return
 	}
 
@@ -263,17 +267,25 @@ func (self ReadableCatalogAPI) GetResource(w http.ResponseWriter, req *http.Requ
 
 	// check if device devid exists
 	_, err := self.catalogStorage.get(devid)
-	if err != nil {
+	if err == ErrorNotFound {
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Device not found\n")
+		fmt.Fprintf(w, "Registration not found\n")
+		return
+	} else if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Error requesting the device: %s\n", err.Error())
 		return
 	}
 
 	// check if it has a resource resid
 	res, err := self.catalogStorage.getResourceById(resid)
-	if err != nil {
+	if err == ErrorNotFound {
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Resource not found\n")
+		fmt.Fprintf(w, "Registration not found\n")
+		return
+	} else if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Error requesting the resource: %s\n", err.Error())
 		return
 	}
 
