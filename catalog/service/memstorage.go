@@ -18,9 +18,9 @@ type MemoryStorage struct {
 }
 
 // CRUD
-func (self *MemoryStorage) add(s Service) (Service, error) {
+func (self *MemoryStorage) add(s Service) error {
 	if s.Id == "" || len(strings.Split(s.Id, "/")) != 2 {
-		return Service{}, errors.New("Service ID has to be <uuid>/<name>")
+		return errors.New("Service ID has to be <uuid>/<name>")
 	}
 
 	s.Created = time.Now()
@@ -34,19 +34,18 @@ func (self *MemoryStorage) add(s Service) (Service, error) {
 	self.reindexEntries()
 	self.mutex.Unlock()
 
-	return s, nil
+	return nil
 }
 
-// Empty Service and nil error should be interpreted as "not found"
-func (self *MemoryStorage) update(id string, s Service) (Service, error) {
+func (self *MemoryStorage) update(id string, s Service) error {
 	var su Service
 
 	self.mutex.Lock()
 
-	ru, ok := self.data[id]
+	_, ok := self.data[id]
 	if !ok {
 		self.mutex.Unlock()
-		return ru, nil
+		return ErrorNotFound
 	}
 
 	su.Type = s.Type
@@ -60,32 +59,30 @@ func (self *MemoryStorage) update(id string, s Service) (Service, error) {
 	self.data[id] = su
 	self.mutex.Unlock()
 
-	return su, nil
+	return nil
 }
 
-// Empty Service and nil error should be interpreted as "not found"
-func (self *MemoryStorage) delete(id string) (Service, error) {
+func (self *MemoryStorage) delete(id string) error {
 	self.mutex.Lock()
 
-	sd, ok := self.data[id]
+	_, ok := self.data[id]
 	if !ok {
 		self.mutex.Unlock()
-		return sd, nil
+		return ErrorNotFound
 	}
 	delete(self.data, id)
 	self.reindexEntries()
 	self.mutex.Unlock()
 
-	return sd, nil
+	return nil
 }
 
-// Empty registration and nil error should be interpreted as "not found"
 func (self *MemoryStorage) get(id string) (Service, error) {
 	self.mutex.RLock()
 	s, ok := self.data[id]
 	if !ok {
 		self.mutex.RUnlock()
-		return s, nil
+		return s, ErrorNotFound
 	}
 	self.mutex.RUnlock()
 	return s, nil

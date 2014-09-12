@@ -147,9 +147,13 @@ func (self ReadableCatalogAPI) Get(w http.ResponseWriter, req *http.Request) {
 	id := fmt.Sprintf("%v/%v", req.URL.Query().Get(PatternHostid), req.URL.Query().Get(PatternReg))
 
 	r, err := self.catalogStorage.get(id)
-	if err != nil || r.Id == "" {
+	if err == ErrorNotFound {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Service not found\n")
+		return
+	} else if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Error requesting the service: %s\n", err.Error())
 		return
 	}
 
@@ -172,17 +176,16 @@ func (self WritableCatalogAPI) Add(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	sa, err := self.catalogStorage.add(s)
+	err = self.catalogStorage.add(s)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error creating the service: %s\n", err.Error())
 		return
 	}
 
-	b, _ := json.Marshal(sa.ldify())
 	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
+	w.Header().Set("Location", fmt.Sprintf("%s/%s", CatalogBaseUrl, s.Id))
 	w.WriteHeader(http.StatusCreated)
-	w.Write(b)
 	return
 }
 
@@ -200,46 +203,37 @@ func (self WritableCatalogAPI) Update(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	su, err := self.catalogStorage.update(id, s)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Error updating the registration: %s\n", err.Error())
-		return
-	}
-
-	if su.Id == "" {
+	err = self.catalogStorage.update(id, s)
+	if err == ErrorNotFound {
 		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Not found\n")
+		fmt.Fprintf(w, "Service not found\n")
+		return
+	} else if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Error requesting the service: %s\n", err.Error())
 		return
 	}
 
-	b, _ := json.Marshal(su.ldify())
 	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.WriteHeader(http.StatusOK)
-	w.Write(b)
-
 	return
 }
 
 func (self WritableCatalogAPI) Delete(w http.ResponseWriter, req *http.Request) {
 	id := fmt.Sprintf("%v/%v", req.URL.Query().Get(PatternHostid), req.URL.Query().Get(PatternReg))
 
-	sd, err := self.catalogStorage.delete(id)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		fmt.Fprintf(w, "Error deleting the registration: %s\n", err.Error())
-		return
-	}
-
-	if sd.Id == "" {
+	err := self.catalogStorage.delete(id)
+	if err == ErrorNotFound {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "Not found\n")
 		return
+	} else if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprintf(w, "Error deleting the device: %s\n", err.Error())
+		return
 	}
 
-	b, _ := json.Marshal(sd.ldify())
 	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.WriteHeader(http.StatusOK)
-	w.Write(b)
 	return
 }

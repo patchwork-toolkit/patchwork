@@ -34,64 +34,67 @@ func NewRemoteCatalogClient(serverEndpoint string) *RemoteCatalogClient {
 	}
 }
 
-// Empty registration and nil error should be interpreted as "not found"
 func (self *RemoteCatalogClient) Get(id string) (Service, error) {
 	res, err := http.Get(fmt.Sprintf("%v%v/%v", self.serverEndpoint, CatalogBaseUrl, id))
 	if err != nil {
 		return Service{}, err
 	}
 
-	if res.StatusCode != http.StatusOK {
-		return Service{}, nil
+	if res.StatusCode == http.StatusNotFound {
+		return Service{}, ErrorNotFound
+	} else if res.StatusCode != http.StatusOK {
+		return Service{}, fmt.Errorf("%v", res.StatusCode)
 	}
 	return serviceFromResponse(res)
 }
 
-func (self *RemoteCatalogClient) Add(s Service) (Service, error) {
+func (self *RemoteCatalogClient) Add(s Service) error {
 	b, _ := json.Marshal(s)
-	res, err := http.Post(self.serverEndpoint+CatalogBaseUrl+"/", "application/ld+json", bytes.NewReader(b))
+	_, err := http.Post(self.serverEndpoint+CatalogBaseUrl+"/", "application/ld+json", bytes.NewReader(b))
 	if err != nil {
-		return Service{}, err
+		return err
 	}
-	return serviceFromResponse(res)
+	return nil
 }
 
-// Empty registration and nil error should be interpreted as "not found"
-func (self *RemoteCatalogClient) Update(id string, s Service) (Service, error) {
+func (self *RemoteCatalogClient) Update(id string, s Service) error {
 	b, _ := json.Marshal(s)
 	req, err := http.NewRequest("PUT", fmt.Sprintf("%v%v/%v", self.serverEndpoint, CatalogBaseUrl, id), bytes.NewReader(b))
 	if err != nil {
-		return Service{}, err
+		return err
 	}
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return Service{}, err
+		return err
 	}
 
-	if res.StatusCode != http.StatusOK {
-		return Service{}, nil
+	if res.StatusCode == http.StatusNotFound {
+		return ErrorNotFound
+	} else if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("%v", res.StatusCode)
 	}
-	return serviceFromResponse(res)
+	return nil
 }
 
-// Empty registration and nil error should be interpreted as "not found"
-func (self *RemoteCatalogClient) Delete(id string) (Service, error) {
+func (self *RemoteCatalogClient) Delete(id string) error {
 	req, err := http.NewRequest("DELETE", fmt.Sprintf("%v%v/%v", self.serverEndpoint, CatalogBaseUrl, id), bytes.NewReader([]byte{}))
 	if err != nil {
-		return Service{}, err
+		return err
 	}
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return Service{}, err
+		return err
 	}
 
-	if res.StatusCode != http.StatusOK {
-		return Service{}, nil
+	if res.StatusCode == http.StatusNotFound {
+		return ErrorNotFound
+	} else if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("%v", res.StatusCode)
 	}
 
-	return serviceFromResponse(res)
+	return nil
 }
 
 func (self *RemoteCatalogClient) GetMany(page, perPage int) ([]Service, int, error) {

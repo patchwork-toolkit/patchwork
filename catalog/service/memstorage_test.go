@@ -1,7 +1,6 @@
 package service
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -18,18 +17,9 @@ func TestAddService(t *testing.T) {
 	r.Id = uuid + "/" + "ServiceName"
 
 	storage := NewCatalogMemoryStorage()
-	ra, err := storage.add(*r)
+	err := storage.add(*r)
 	if err != nil {
 		t.Errorf("Received unexpected error: %v", err.Error())
-	}
-	if ra.Id == "" {
-		t.Error("Service's Id should not be empty")
-	}
-
-	// id should be uuid/<id>
-	spid := strings.Split(ra.Id, "/")
-	if len(spid) != 2 {
-		t.Fail()
 	}
 }
 
@@ -39,25 +29,17 @@ func TestUpdateService(t *testing.T) {
 	r.Id = uuid + "/" + "ServiceName"
 
 	storage := NewCatalogMemoryStorage()
-	ra, err := storage.add(*r)
+	err := storage.add(*r)
 	if err != nil {
 		t.Errorf("Unexpected error on add: %v", err.Error())
 	}
-	ra.Name = "UpdatedName"
-	spid := strings.Split(ra.Id, "/")
+	r.Name = "UpdatedName"
 
-	if len(spid) != 2 {
-		t.Fail()
-	}
-
-	ru, err := storage.update(ra.Id, ra)
+	err = storage.update(r.Id, *r)
 	if err != nil {
-		t.Error("Unexpected error on update: %v", err.Error())
+		t.Errorf("Unexpected error on update: %v", err.Error())
 	}
 
-	if ru.Name != "UpdatedName" {
-		t.Fail()
-	}
 }
 
 func TestGetService(t *testing.T) {
@@ -68,17 +50,12 @@ func TestGetService(t *testing.T) {
 	r.Id = uuid + "/" + "ServiceName"
 
 	storage := NewCatalogMemoryStorage()
-	ra, err := storage.add(*r)
+	err := storage.add(*r)
 	if err != nil {
 		t.Errorf("Unexpected error on add: %v", err.Error())
 	}
-	spid := strings.Split(ra.Id, "/")
 
-	if len(spid) != 2 {
-		t.Fail()
-	}
-
-	rg, err := storage.get(ra.Id)
+	rg, err := storage.get(r.Id)
 	if err != nil {
 		t.Error("Unexpected error on get: %v", err.Error())
 	}
@@ -93,26 +70,18 @@ func TestDeleteService(t *testing.T) {
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
 	r.Id = uuid + "/" + "ServiceName"
 	storage := NewCatalogMemoryStorage()
-	ra, err := storage.add(*r)
+	err := storage.add(*r)
 	if err != nil {
 		t.Errorf("Unexpected error on add: %v", err.Error())
 	}
-	spid := strings.Split(ra.Id, "/")
 
-	if len(spid) != 2 {
-		t.Fail()
-	}
-
-	_, err = storage.delete(ra.Id)
+	err = storage.delete(r.Id)
 	if err != nil {
 		t.Error("Unexpected error on delete: %v", err.Error())
 	}
 
-	rd, err := storage.delete(ra.Id)
-	if err != nil {
-		t.Error("Unexpected error on delete: %v", err.Error())
-	}
-	if rd.Id != "" {
+	err = storage.delete(r.Id)
+	if err != ErrorNotFound {
 		t.Error("The previous call hasn't deleted the Service?")
 	}
 }
@@ -123,7 +92,7 @@ func TestGetManyServices(t *testing.T) {
 	// Add 10 entries
 	for i := 0; i < 11; i++ {
 		r.Id = "TestID" + "/" + string(i)
-		_, err := storage.add(*r)
+		err := storage.add(*r)
 
 		if err != nil {
 			t.Errorf("Unexpected error on add: %v", err.Error())

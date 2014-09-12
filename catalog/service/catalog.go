@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"time"
 )
 
@@ -9,6 +10,8 @@ const (
 	DnssdServiceType = "_patchwork-sc._tcp"
 	MaxPerPage       = 100
 )
+
+var ErrorNotFound = errors.New("NotFound")
 
 // Structs
 
@@ -52,9 +55,9 @@ type Protocol struct {
 // Storage interface
 type CatalogStorage interface {
 	// CRUD
-	add(Service) (Service, error)
-	update(string, Service) (Service, error)
-	delete(string) (Service, error)
+	add(Service) error
+	update(string, Service) error
+	delete(string) error
 	get(string) (Service, error)
 
 	// Utility functions
@@ -70,8 +73,8 @@ type CatalogStorage interface {
 // Catalog client
 type CatalogClient interface {
 	Get(string) (Service, error)
-	Add(Service) (Service, error)
-	Update(string, Service) (Service, error)
-	Delete(string) (Service, error)
+	Add(Service) error
+	Update(string, Service) error
+	Delete(string) error
 	GetMany(int, int) ([]Service, int, error)
 }

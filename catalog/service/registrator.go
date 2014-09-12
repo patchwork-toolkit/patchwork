@@ -67,20 +67,20 @@ func (self *Registrator) RegisterService(config *ServiceConfig, keepalive bool) 
 
 	// If not in the target catalog - Add
 	if r.Id == "" {
-		ra, err := self.client.Add(reg)
+		err = self.client.Add(reg)
 		if err != nil {
 			log.Printf("Error accessing the catalog: %v\n", err)
 			return err
 		}
-		log.Printf("Added Service registration %v\n", ra.Id)
+		log.Printf("Added Service registration %v\n", reg.Id)
 	} else {
 		// otherwise - Update
-		ru, err := self.client.Update(reg.Id, reg)
+		err = self.client.Update(reg.Id, reg)
 		if err != nil {
 			log.Printf("Error accessing the catalog: %v\n", err)
 			return err
 		}
-		log.Printf("Updated Service registration %v\n", ru.Id)
+		log.Printf("Updated Service registration %v\n", reg.Id)
 	}
 
 	// If told to keep alive
@@ -103,14 +103,13 @@ func (self *Registrator) RegisterService(config *ServiceConfig, keepalive bool) 
 func (self *Registrator) DeregisterService(config *ServiceConfig) error {
 	reg := registrationFromConfig(config)
 
-	_, err := self.client.Delete(reg.Id)
-	// Note: if not found, we don't care
-	if err != nil {
+	err := self.client.Delete(reg.Id)
+	if err == ErrorNotFound {
+		log.Printf("Service %v not found in the remote catalog. TTL expired?", reg.Id)
+	} else if err != nil {
 		log.Printf("Error accessing the catalog: %v\n", err)
-		return err
 	}
-
-	return nil
+	return err
 }
 
 func registrationFromConfig(config *ServiceConfig) Service {
@@ -130,28 +129,25 @@ func registrationFromConfig(config *ServiceConfig) Service {
 func (self *Registrator) keepRegistrationAlive(delay time.Duration, reg Service) {
 	time.Sleep(delay)
 
-	ru, err := self.client.Update(reg.Id, reg)
-	if err != nil {
-		log.Printf("Error accessing the catalog: %v\n", err)
-		go self.keepRegistrationAlive(delay, reg)
-		return
-	}
+	err := self.client.Update(reg.Id, reg)
 
 	// Registration not found in the remote catalog
-	if ru.Id == "" {
+	if err == ErrorNotFound {
 		log.Printf("Registration %v not found in the remote catalog. TTL expired?", reg.Id)
-		ru, err = self.client.Add(reg)
+		err = self.client.Add(reg)
 		if err != nil {
 			log.Printf("Error accessing the catalog: %v\n", err)
 			go self.keepRegistrationAlive(delay, reg)
 			return
 		}
-		log.Printf("Added Service registration %v\n", ru.Id)
+		log.Printf("Added Service registration %v\n", reg.Id)
+	} else if err != nil {
+		log.Printf("Error accessing the catalog: %v\n", err)
+		go self.keepRegistrationAlive(delay, reg)
+		return
 	} else {
-		log.Printf("Updated Service registration %v\n", ru.Id)
+		log.Printf("Updated Service registration %v\n", reg.Id)
 	}
-	reg = ru
-
 	go self.keepRegistrationAlive(delay, reg)
 }
 
