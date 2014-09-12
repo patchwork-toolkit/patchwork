@@ -295,17 +295,16 @@ func (self WritableCatalogAPI) Add(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	da, err := self.catalogStorage.add(d)
+	err = self.catalogStorage.add(d)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error creating the registration: %s\n", err.Error())
 		return
 	}
 
-	b, _ := json.Marshal(da.ldify())
 	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
+	w.Header().Set("Location", fmt.Sprintf("%s/%s", CatalogBaseUrl, d.Id))
 	w.WriteHeader(http.StatusCreated)
-	w.Write(b)
 	return
 }
 
@@ -323,46 +322,37 @@ func (self WritableCatalogAPI) Update(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	du, err := self.catalogStorage.update(id, d)
-	if err != nil {
+	err = self.catalogStorage.update(id, d)
+	if err == ErrorNotFound {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "Not found\n")
+		return
+	} else if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error updating the device: %s\n", err.Error())
 		return
 	}
 
-	if du.Id == "" {
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Not found\n")
-		return
-	}
-
-	b, _ := json.Marshal(du.ldify())
 	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.WriteHeader(http.StatusOK)
-	w.Write(b)
-
 	return
 }
 
 func (self WritableCatalogAPI) Delete(w http.ResponseWriter, req *http.Request) {
 	id := fmt.Sprintf("%v/%v", req.URL.Query().Get(PatternUuid), req.URL.Query().Get(PatternReg))
 
-	dd, err := self.catalogStorage.delete(id)
-	if err != nil {
+	err := self.catalogStorage.delete(id)
+	if err == ErrorNotFound {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "Not found\n")
+		return
+	} else if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		fmt.Fprintf(w, "Error deleting the device: %s\n", err.Error())
 		return
 	}
 
-	if dd.Id == "" {
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "Not found\n")
-		return
-	}
-
-	b, _ := json.Marshal(dd.ldify())
 	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
 	w.WriteHeader(http.StatusOK)
-	w.Write(b)
 	return
 }

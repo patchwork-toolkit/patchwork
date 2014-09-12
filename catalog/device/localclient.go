@@ -4,17 +4,17 @@ type LocalCatalogClient struct {
 	localStorage CatalogStorage
 }
 
-func (self *LocalCatalogClient) Add(r Device) (Device, error) {
+func (self *LocalCatalogClient) Add(r Device) error {
 	// set ttl to -1
 	r.Ttl = -1
 	return self.localStorage.add(r)
 }
 
-func (self *LocalCatalogClient) Update(id string, r Device) (Device, error) {
+func (self *LocalCatalogClient) Update(id string, r Device) error {
 	return self.localStorage.update(id, r)
 }
 
-func (self *LocalCatalogClient) Delete(id string) (Device, error) {
+func (self *LocalCatalogClient) Delete(id string) error {
 	return self.localStorage.delete(id)
 }
 

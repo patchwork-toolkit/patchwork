@@ -1,6 +1,7 @@
 package device
 
 import (
+	"errors"
 	"time"
 )
 
@@ -9,6 +10,8 @@ const (
 	DnssdServiceType = "_patchwork-dc._tcp"
 	MaxPerPage       = 100
 )
+
+var ErrorNotFound = errors.New("NotFound")
 
 // Structs
 
@@ -70,9 +73,9 @@ func (self *Resource) copy() Resource {
 // Storage interface
 type CatalogStorage interface {
 	// CRUD
-	add(Device) (Device, error)
-	update(string, Device) (Device, error)
-	delete(string) (Device, error)
+	add(Device) error
+	update(string, Device) error
+	delete(string) error
 	get(string) (Device, error)
 
 	// Utility functions
@@ -93,8 +96,8 @@ type CatalogStorage interface {
 // Catalog client
 type CatalogClient interface {
 	Get(string) (Device, error)
-	Add(Device) (Device, error)
-	Update(string, Device) (Device, error)
-	Delete(string) (Device, error)
+	Add(Device) error
+	Update(string, Device) error
+	Delete(string) error
 	GetMany(int, int) ([]Device, int, error)
 }

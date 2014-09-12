@@ -34,64 +34,67 @@ func NewRemoteCatalogClient(serverEndpoint string) *RemoteCatalogClient {
 	}
 }
 
-// Empty registration and nil error should be interpreted as "not found"
 func (self *RemoteCatalogClient) Get(id string) (Device, error) {
 	res, err := http.Get(fmt.Sprintf("%v%v/%v", self.serverEndpoint, CatalogBaseUrl, id))
 	if err != nil {
 		return Device{}, err
 	}
 
-	if res.StatusCode != http.StatusOK {
-		return Device{}, nil
+	if res.StatusCode == http.StatusNotFound {
+		return Device{}, ErrorNotFound
+	} else if res.StatusCode != http.StatusOK {
+		return Device{}, fmt.Errorf("%v", res.StatusCode)
 	}
 	return deviceFromResponse(res)
 }
 
-func (self *RemoteCatalogClient) Add(d Device) (Device, error) {
+func (self *RemoteCatalogClient) Add(d Device) error {
 	b, _ := json.Marshal(d)
-	res, err := http.Post(self.serverEndpoint+CatalogBaseUrl+"/", "application/ld+json", bytes.NewReader(b))
+	_, err := http.Post(self.serverEndpoint+CatalogBaseUrl+"/", "application/ld+json", bytes.NewReader(b))
 	if err != nil {
-		return Device{}, err
+		return err
 	}
-	return deviceFromResponse(res)
+	return nil
 }
 
-// Empty registration and nil error should be interpreted as "not found"
-func (self *RemoteCatalogClient) Update(id string, d Device) (Device, error) {
+func (self *RemoteCatalogClient) Update(id string, d Device) error {
 	b, _ := json.Marshal(d)
 	req, err := http.NewRequest("PUT", fmt.Sprintf("%v%v/%v", self.serverEndpoint, CatalogBaseUrl, id), bytes.NewReader(b))
 	if err != nil {
-		return Device{}, err
+		return err
 	}
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return Device{}, err
+		return err
 	}
 
-	if res.StatusCode != http.StatusOK {
-		return Device{}, nil
+	if res.StatusCode == http.StatusNotFound {
+		return ErrorNotFound
+	} else if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("%v", res.StatusCode)
 	}
-	return deviceFromResponse(res)
+	return nil
 }
 
-// Empty registration and nil error should be interpreted as "not found"
-func (self *RemoteCatalogClient) Delete(id string) (Device, error) {
+func (self *RemoteCatalogClient) Delete(id string) error {
 	req, err := http.NewRequest("DELETE", fmt.Sprintf("%v%v/%v", self.serverEndpoint, CatalogBaseUrl, id), bytes.NewReader([]byte{}))
 	if err != nil {
-		return Device{}, err
+		return err
 	}
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return Device{}, err
+		return err
 	}
 
-	if res.StatusCode != http.StatusOK {
-		return Device{}, nil
+	if res.StatusCode == http.StatusNotFound {
+		return ErrorNotFound
+	} else if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("%v", res.StatusCode)
 	}
 
-	return deviceFromResponse(res)
+	return nil
 }
 
 func (self *RemoteCatalogClient) GetMany(page int, perPage int) ([]Device, int, error) {

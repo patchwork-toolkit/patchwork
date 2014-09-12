@@ -99,28 +99,26 @@ func unregisterDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 
 func publishRegistrations(catalogClient catalog.CatalogClient, registrations []catalog.Device, keepalive bool) {
 	for _, lr := range registrations {
-		rr, err := catalogClient.Get(lr.Id)
-		if err != nil {
+		_, err := catalogClient.Get(lr.Id)
+		// If not in the target catalog - Add
+		if err == catalog.ErrorNotFound {
+			err = catalogClient.Add(lr)
+			if err != nil {
+				log.Printf("Error accessing the catalog: %v\n", err)
+				return
+			}
+			log.Printf("Added registration %v", lr.Id)
+		} else if err != nil {
 			log.Printf("Error accessing the catalog: %v\n", err)
 			return
-		}
-
-		// If not in the target catalog - Add
-		if rr.Id == "" {
-			rra, err := catalogClient.Add(lr)
-			if err != nil {
-				log.Printf("Error accessing the catalog: %v\n", err)
-				return
-			}
-			log.Printf("Added registration %v", rra.Id)
 		} else {
 			// otherwise - Update
-			rru, err := catalogClient.Update(lr.Id, lr)
+			err = catalogClient.Update(lr.Id, lr)
 			if err != nil {
 				log.Printf("Error accessing the catalog: %v\n", err)
 				return
 			}
-			log.Printf("Updated registration %v\n", rru.Id)
+			log.Printf("Updated registration %v\n", lr.Id)
 		}
 	}
 
@@ -152,27 +150,24 @@ func removeRegistrations(catalogClient catalog.CatalogClient, registrations []ca
 func keepRegistrationAlive(delay time.Duration, client catalog.CatalogClient, reg catalog.Device) {
 	time.Sleep(delay)
 
-	ru, err := client.Update(reg.Id, reg)
-	if err != nil {
-		log.Printf("Error accessing the catalog: %v\n", err)
-		go keepRegistrationAlive(delay, client, reg)
-		return
-	}
+	err := client.Update(reg.Id, reg)
 
 	// Device not found in the remote catalog
-	if ru.Id == "" {
+	if err == catalog.ErrorNotFound {
 		log.Printf("Device %v not found in the remote catalog. TTL expired?", reg.Id)
-		ru, err = client.Add(reg)
+		err = client.Add(reg)
 		if err != nil {
 			log.Printf("Error accessing the catalog: %v\n", err)
 			go keepRegistrationAlive(delay, client, reg)
 			return
 		}
-		log.Printf("Added registration %v\n", ru.Id)
+		log.Printf("Added registration %v\n", reg.Id)
+	} else if err != nil {
+		log.Printf("Error accessing the catalog: %v\n", err)
+		go keepRegistrationAlive(delay, client, reg)
+		return
 	} else {
-		log.Printf("Updated registration %v\n", ru.Id)
+		log.Printf("Updated registration %v\n", reg.Id)
 	}
-	reg = ru
-
 	go keepRegistrationAlive(delay, client, reg)
 }

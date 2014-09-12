@@ -2,6 +2,7 @@ package device
 
 import (
 	"errors"
+	"fmt"
 	"github.com/patchwork-toolkit/patchwork/catalog"
 	"log"
 	"sort"
@@ -25,14 +26,14 @@ type StoredDevice struct {
 }
 
 // CRUD
-func (self *MemoryStorage) add(d Device) (Device, error) {
+func (self *MemoryStorage) add(d Device) error {
 	if d.Id == "" || len(strings.Split(d.Id, "/")) != 2 {
-		return Device{}, errors.New("Device ID has to be <uuid>/<name>")
+		return errors.New("Device ID has to be <uuid>/<name>")
 	}
 
 	for _, res := range d.Resources {
 		if res.Id == "" || len(strings.Split(res.Id, "/")) != 3 {
-			return Device{}, errors.New("Resource ID has to be <uuid>/<name>/<resource>")
+			return errors.New("Resource ID has to be <uuid>/<name>/<resource>")
 		}
 	}
 
@@ -64,17 +65,16 @@ func (self *MemoryStorage) add(d Device) (Device, error) {
 	self.reindexResources()
 	self.mutex.Unlock()
 
-	return self.get(sd.Id)
+	return nil
 }
 
-// Empty device and nil error should be interpreted as "not found"
-func (self *MemoryStorage) update(id string, d Device) (Device, error) {
+func (self *MemoryStorage) update(id string, d Device) error {
 	self.mutex.Lock()
 
 	sd, ok := self.devices[id]
 	if !ok {
 		self.mutex.Unlock()
-		return Device{}, nil
+		return ErrorNotFound
 	}
 
 	sd.Type = d.Type
@@ -96,18 +96,15 @@ func (self *MemoryStorage) update(id string, d Device) (Device, error) {
 	self.reindexResources() // device resources may change on update
 	self.mutex.Unlock()
 
-	return self.get(id)
+	return nil
 }
 
-// Empty registration and nil error should be interpreted as "not found"
-func (self *MemoryStorage) delete(id string) (Device, error) {
-	dd, _ := self.get(id)
-
+func (self *MemoryStorage) delete(id string) error {
 	self.mutex.Lock()
 	sd, ok := self.devices[id]
 	if !ok {
 		self.mutex.Unlock()
-		return Device{}, nil
+		return ErrorNotFound
 	}
 
 	for _, res := range sd.Resources {
@@ -117,16 +114,15 @@ func (self *MemoryStorage) delete(id string) (Device, error) {
 	self.reindexResources()
 	self.mutex.Unlock()
 
-	return dd, nil
+	return nil
 }
 
-// Empty registration and nil error should be interpreted as "not found"
 func (self *MemoryStorage) get(id string) (Device, error) {
 	self.mutex.RLock()
 	sd, ok := self.devices[id]
 	if !ok {
 		self.mutex.RUnlock()
-		return Device{}, nil
+		return Device{}, ErrorNotFound
 	}
 	d := Device{
 		Id:          sd.Id,
@@ -144,7 +140,7 @@ func (self *MemoryStorage) get(id string) (Device, error) {
 	for _, rid := range sd.Resources {
 		res, ok := self.resources[rid]
 		if !ok {
-			return Device{}, nil
+			return d, fmt.Errorf("Device %s resource %s not found", id, rid)
 		}
 		d.Resources = append(d.Resources, res)
 	}
@@ -219,7 +215,7 @@ func (self *MemoryStorage) getResourceById(id string) (Resource, error) {
 	res, ok := self.resources[id]
 	if !ok {
 		self.mutex.RUnlock()
-		return Resource{}, errors.New("Resource not found")
+		return Resource{}, ErrorNotFound
 	}
 	self.mutex.RUnlock()
 	return res, nil

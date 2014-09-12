@@ -1,7 +1,6 @@
 package device
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -26,18 +25,9 @@ func TestAddDevice(t *testing.T) {
 	r.Id = uuid + "/" + "DeviceName"
 
 	storage := NewCatalogMemoryStorage()
-	ra, err := storage.add(*r)
+	err := storage.add(*r)
 	if err != nil {
 		t.Errorf("Received unexpected error: %v", err.Error())
-	}
-	if ra.Id == "" {
-		t.Error("Device's Id should not be empty")
-	}
-
-	// id should be uuid/<id>
-	spid := strings.Split(ra.Id, "/")
-	if len(spid) != 2 {
-		t.Fail()
 	}
 }
 
@@ -47,24 +37,15 @@ func TestUpdateDevice(t *testing.T) {
 	r.Id = uuid + "/" + "DeviceName"
 	storage := NewCatalogMemoryStorage()
 
-	ra, err := storage.add(*r)
+	err := storage.add(*r)
 	if err != nil {
 		t.Errorf("Unexpected error on add: %v", err.Error())
 	}
+	ra := r.copy()
 	ra.Name = "UpdatedName"
-	spid := strings.Split(ra.Id, "/")
-
-	if len(spid) != 2 {
-		t.Fail()
-	}
-
-	ru, err := storage.update(ra.Id, ra)
+	err = storage.update(ra.Id, ra)
 	if err != nil {
 		t.Error("Unexpected error on update: %v", err.Error())
-	}
-
-	if ru.Name != "UpdatedName" {
-		t.Fail()
 	}
 }
 
@@ -76,17 +57,12 @@ func TestGetDevice(t *testing.T) {
 	r.Id = uuid + "/" + "DeviceName"
 	storage := NewCatalogMemoryStorage()
 
-	ra, err := storage.add(*r)
+	err := storage.add(*r)
 	if err != nil {
 		t.Errorf("Unexpected error on add: %v", err.Error())
 	}
-	spid := strings.Split(ra.Id, "/")
 
-	if len(spid) != 2 {
-		t.Fail()
-	}
-
-	rg, err := storage.get(ra.Id)
+	rg, err := storage.get(r.Id)
 	if err != nil {
 		t.Error("Unexpected error on get: %v", err.Error())
 	}
@@ -102,27 +78,20 @@ func TestDeleteDevice(t *testing.T) {
 	r.Id = uuid + "/" + "DeviceName"
 	storage := NewCatalogMemoryStorage()
 
-	ra, err := storage.add(*r)
+	err := storage.add(*r)
 	if err != nil {
 		t.Errorf("Unexpected error on add: %v", err.Error())
 	}
-	spid := strings.Split(ra.Id, "/")
-
-	if len(spid) != 2 {
-		t.Fail()
-	}
-
-	_, err = storage.delete(ra.Id)
+	err = storage.delete(r.Id)
 	if err != nil {
 		t.Error("Unexpected error on delete: %v", err.Error())
 	}
 
-	rd, err := storage.delete(ra.Id)
-	if err != nil {
-		t.Error("Unexpected error on delete: %v", err.Error())
-	}
-	if rd.Id != "" {
+	err = storage.delete(r.Id)
+	if err != ErrorNotFound {
 		t.Error("The previous call hasn't deleted the Device?")
+	} else if err == nil {
+		t.Error("Unexpected error on delete: %v", err.Error())
 	}
 }
 
@@ -140,7 +109,7 @@ func TestGetManyDevices(t *testing.T) {
 		r.Id = d.Id + "/" + r.Name
 		d.Resources = append(d.Resources, r)
 
-		_, err := storage.add(*d)
+		err := storage.add(*d)
 		if err != nil {
 			t.Errorf("Unexpected error on add: %v", err.Error())
 		}
