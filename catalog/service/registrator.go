@@ -59,20 +59,18 @@ func (self *Registrator) LoadConfigFromFile(confPath string) (*ServiceConfig, er
 func (self *Registrator) RegisterService(config *ServiceConfig, keepalive bool) error {
 	reg := registrationFromConfig(config)
 
-	r, err := self.client.Get(reg.Id)
-	if err != nil {
-		log.Printf("Error accessing the catalog: %v\n", err)
-		return err
-	}
-
+	_, err := self.client.Get(reg.Id)
 	// If not in the target catalog - Add
-	if r.Id == "" {
+	if err == ErrorNotFound {
 		err = self.client.Add(reg)
 		if err != nil {
 			log.Printf("Error accessing the catalog: %v\n", err)
 			return err
 		}
 		log.Printf("Added Service registration %v\n", reg.Id)
+	} else if err != nil {
+		log.Printf("Error accessing the catalog: %v\n", err)
+		return err
 	} else {
 		// otherwise - Update
 		err = self.client.Update(reg.Id, reg)
