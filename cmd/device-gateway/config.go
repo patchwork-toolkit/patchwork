@@ -107,10 +107,10 @@ type Config struct {
 
 // Validates the loaded configuration
 func (self *Config) Validate() error {
-	//if _, ok := self.Catalog[CatalogTypeLocal]; !ok {
-	//	return fmt.Errorf("Catalog should contain local section")
-	//}
-	//TODO: add more validation rules here
+	// Check if HTTP is configured
+	if self.Http.BindAddr == "" || self.Http.BindPort == 0 {
+		return errors.New("Invalid config: HTTP has to be properly configured")
+	}
 
 	// Check if REST protocol is configured
 	_, ok := self.Protocols[ProtocolTypeREST]
