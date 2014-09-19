@@ -10,7 +10,7 @@ import (
 )
 
 type RemoteCatalogClient struct {
-	serverEndpoint string // URL
+	serverEndpoint *url.URL
 }
 
 func serviceFromResponse(res *http.Response, apiLocation string) (Service, error) {
@@ -31,13 +31,13 @@ func serviceFromResponse(res *http.Response, apiLocation string) (Service, error
 
 func NewRemoteCatalogClient(serverEndpoint string) *RemoteCatalogClient {
 	// Check if serverEndpoint is a correct URL
-	_, err := url.Parse(serverEndpoint)
+	endpointUrl, err := url.Parse(serverEndpoint)
 	if err != nil {
 		return &RemoteCatalogClient{}
 	}
 
 	return &RemoteCatalogClient{
-		serverEndpoint: serverEndpoint,
+		serverEndpoint: endpointUrl,
 	}
 }
 
@@ -52,13 +52,12 @@ func (self *RemoteCatalogClient) Get(id string) (Service, error) {
 	} else if res.StatusCode != http.StatusOK {
 		return Service{}, fmt.Errorf("%v", res.StatusCode)
 	}
-	serverUrl, _ := url.Parse(self.serverEndpoint)
-	return serviceFromResponse(res, serverUrl.Host)
+	return serviceFromResponse(res, self.serverEndpoint.Path)
 }
 
 func (self *RemoteCatalogClient) Add(s Service) error {
 	b, _ := json.Marshal(s)
-	_, err := http.Post(self.serverEndpoint+"/", "application/ld+json", bytes.NewReader(b))
+	_, err := http.Post(self.serverEndpoint.String()+"/", "application/ld+json", bytes.NewReader(b))
 	if err != nil {
 		return err
 	}
@@ -127,7 +126,7 @@ func (self *RemoteCatalogClient) GetMany(page, perPage int) ([]Service, int, err
 
 	svcs := make([]Service, 0, len(coll.Services))
 	for _, v := range coll.Services {
-		svcs = append(svcs, v)
+		svcs = append(svcs, v.unLdify(self.serverEndpoint.Path))
 	}
 
 	return svcs, len(svcs), nil
