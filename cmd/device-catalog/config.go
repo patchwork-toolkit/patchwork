@@ -2,8 +2,9 @@ package main
 
 import (
 	"encoding/json"
-	"errors"
+	"fmt"
 	"io/ioutil"
+	"strings"
 )
 
 type Config struct {
@@ -13,7 +14,8 @@ type Config struct {
 	BindPort       int              `json:"bindPort"`
 	DnssdEnabled   bool             `json:"dnssdEnabled"`
 	StaticDir      string           `json:"staticDir"`
-	Storage        string           `json:"storage"`
+	ApiLocation    string           `json:"apiLocation"`
+	Storage        StorageConfig    `json:"storage"`
 	ServiceCatalog []ServiceCatalog `json:"serviceCatalog"`
 }
 
@@ -23,11 +25,35 @@ type ServiceCatalog struct {
 	Ttl      int
 }
 
+type StorageConfig struct {
+	Type string `json:"type"`
+}
+
+var supportedBackends = map[string]bool{
+	"memory": true,
+}
+
 func (self *Config) Validate() error {
-	if self.BindAddr != "" && self.BindPort > 0 {
-		return nil
+	var err error
+	if self.BindAddr == "" && self.BindPort == 0 {
+		err = fmt.Errorf("Empty host or port")
 	}
-	return errors.New("Invalid config")
+	if !supportedBackends[self.Storage.Type] {
+		err = fmt.Errorf("Unsupported storage backend")
+	}
+	if self.ApiLocation == "" {
+		err = fmt.Errorf("apiLocation must be defined")
+	}
+	if self.StaticDir == "" {
+		err = fmt.Errorf("staticDir must be defined")
+	}
+	if strings.HasSuffix(self.ApiLocation, "/") {
+		err = fmt.Errorf("apiLocation must not have a training slash")
+	}
+	if strings.HasSuffix(self.StaticDir, "/") {
+		err = fmt.Errorf("staticDir must not have a training slash")
+	}
+	return err
 }
 
 func loadConfig(confPath string) (*Config, error) {

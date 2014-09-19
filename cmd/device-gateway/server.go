@@ -14,6 +14,11 @@ import (
 	"time"
 )
 
+const (
+	StaticLocation  = "/static"
+	CatalogLocation = "/dc"
+)
+
 type errorResponse struct {
 	Error string `json:"error"`
 }
@@ -41,7 +46,7 @@ func (self *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
 	self.mountCatalog(catalogStorage)
 	self.mountResources()
 	self.router.Get(self.restConfig.Location, self.indexHandler())
-	self.router.Get("/static/", self.staticHandler())
+	self.router.Get(StaticLocation+"/", self.staticHandler())
 
 	// Mount router to server
 	serverMux := http.NewServeMux()
@@ -113,22 +118,22 @@ func (self *RESTfulAPI) mountResources() {
 }
 
 func (self *RESTfulAPI) mountCatalog(catalogStorage catalog.CatalogStorage) {
-	catalogAPI := catalog.NewReadableCatalogAPI(catalogStorage, "/static/ctx/catalog.jsonld")
+	catalogAPI := catalog.NewReadableCatalogAPI(catalogStorage, CatalogLocation, StaticLocation)
 
 	self.router.Get(fmt.Sprintf("%s/%s/%s/%s/%s",
-		catalog.CatalogBaseUrl, catalog.PatternFType, catalog.PatternFPath, catalog.PatternFOp, catalog.PatternFValue),
+		CatalogLocation, catalog.PatternFType, catalog.PatternFPath, catalog.PatternFOp, catalog.PatternFValue),
 		http.HandlerFunc(catalogAPI.Filter))
 
 	self.router.Get(fmt.Sprintf("%s/%s/%s/%s",
-		catalog.CatalogBaseUrl, catalog.PatternUuid, catalog.PatternReg, catalog.PatternRes),
+		CatalogLocation, catalog.PatternUuid, catalog.PatternReg, catalog.PatternRes),
 		http.HandlerFunc(catalogAPI.GetResource))
 
 	self.router.Get(fmt.Sprintf("%s/%s/%s",
-		catalog.CatalogBaseUrl, catalog.PatternUuid, catalog.PatternReg),
+		CatalogLocation, catalog.PatternUuid, catalog.PatternReg),
 		http.HandlerFunc(catalogAPI.Get))
 
-	self.router.Get(catalog.CatalogBaseUrl, http.HandlerFunc(catalogAPI.List))
-	log.Printf("Mounted local catalog at %v", catalog.CatalogBaseUrl)
+	self.router.Get(CatalogLocation, http.HandlerFunc(catalogAPI.List))
+	log.Printf("Mounted local catalog at %v", CatalogLocation)
 }
 
 func (self *RESTfulAPI) createResourceGetHandler(resourceId string) http.HandlerFunc {

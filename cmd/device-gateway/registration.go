@@ -16,7 +16,7 @@ func registerDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 	restConfig, _ := config.Protocols[ProtocolTypeREST].(RestProtocol)
 	for _, device := range config.Devices {
 		r := new(catalog.Device)
-		r.Type = "Device"
+		r.Type = catalog.ApiDeviceType
 		r.Ttl = device.Ttl
 		r.Name = device.Name
 		r.Description = device.Description
@@ -25,7 +25,7 @@ func registerDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 		r.Resources = []catalog.Resource{}
 		for _, resource := range device.Resources {
 			res := new(catalog.Resource)
-			res.Type = "Resource"
+			res.Type = catalog.ApiResourceType
 			res.Name = resource.Name
 			res.Meta = resource.Meta
 			res.Representation = resource.Representation

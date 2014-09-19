@@ -49,7 +49,7 @@ func main() {
 
 	// Expose device's resources via REST (include statics and local catalog)
 	restServer := newRESTfulAPI(config, agentManager.DataRequestInbox())
-	catalogStorage := catalog.NewCatalogMemoryStorage()
+	catalogStorage := catalog.NewMemoryStorage()
 	go restServer.start(catalogStorage)
 
 	// Register devices in the local catalog and run periodic remote catalog updates (if required)

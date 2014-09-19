@@ -11,21 +11,21 @@ import (
 )
 
 const (
-	PatternReg        = ":regid"
-	PatternRes        = ":resname"
-	PatternUuid       = ":uuid"
-	PatternFType      = ":type"
-	PatternFPath      = ":path"
-	PatternFOp        = ":op"
-	PatternFValue     = ":value"
-	FTypeDevice       = "device"
-	FTypeDevices      = "devices"
-	FTypeResource     = "resource"
-	FTypeResources    = "resources"
-	GetParamPage      = "page"
-	GetParamPerPage   = "per_page"
-	CollectionType    = "DeviceCatalog"
-	CurrentApiVersion = "0.2.1"
+	PatternReg      = ":regid"
+	PatternRes      = ":resname"
+	PatternUuid     = ":uuid"
+	PatternFType    = ":type"
+	PatternFPath    = ":path"
+	PatternFOp      = ":op"
+	PatternFValue   = ":value"
+	FTypeDevice     = "device"
+	FTypeDevices    = "devices"
+	FTypeResource   = "resource"
+	FTypeResources  = "resources"
+	GetParamPage    = "page"
+	GetParamPerPage = "per_page"
+	CtxRootDir      = "/ctx"
+	CtxPathCatalog  = "/catalog.jsonld"
 )
 
 type Collection struct {
@@ -57,7 +57,8 @@ type PaginatedDevice struct {
 // Read-only catalog api
 type ReadableCatalogAPI struct {
 	catalogStorage CatalogStorage
-	contextUrl     string
+	apiLocation    string
+	ctxPathRoot    string
 }
 
 // Writable catalog api
@@ -65,50 +66,52 @@ type WritableCatalogAPI struct {
 	*ReadableCatalogAPI
 }
 
-func NewReadableCatalogAPI(storage CatalogStorage, contextUrl string) *ReadableCatalogAPI {
+func NewReadableCatalogAPI(storage CatalogStorage, apiLocation, staticLocation string) *ReadableCatalogAPI {
 	return &ReadableCatalogAPI{
 		catalogStorage: storage,
-		contextUrl:     contextUrl,
+		apiLocation:    apiLocation,
+		ctxPathRoot:    staticLocation + CtxRootDir,
 	}
 }
 
-func NewWritableCatalogAPI(storage CatalogStorage, contextUrl string) *WritableCatalogAPI {
+func NewWritableCatalogAPI(storage CatalogStorage, apiLocation, staticLocation string) *WritableCatalogAPI {
 	return &WritableCatalogAPI{
 		&ReadableCatalogAPI{
 			catalogStorage: storage,
-			contextUrl:     contextUrl,
+			apiLocation:    apiLocation,
+			ctxPathRoot:    staticLocation + CtxRootDir,
 		}}
 }
 
-func (self *Device) ldify() Device {
+func (self *Device) ldify(apiLocation string) Device {
 	rc := self.copy()
 	for i, res := range rc.Resources {
-		rc.Resources[i] = res.ldify()
+		rc.Resources[i] = res.ldify(apiLocation)
 	}
-	rc.Id = fmt.Sprintf("%v/%v", CatalogBaseUrl, self.Id)
+	rc.Id = fmt.Sprintf("%v/%v", apiLocation, self.Id)
 	return rc
 }
 
-func (self *Resource) ldify() Resource {
+func (self *Resource) ldify(apiLocation string) Resource {
 	resc := self.copy()
-	resc.Id = fmt.Sprintf("%v/%v", CatalogBaseUrl, self.Id)
-	resc.Device = fmt.Sprintf("%v/%v", CatalogBaseUrl, self.Device)
+	resc.Id = fmt.Sprintf("%v/%v", apiLocation, self.Id)
+	resc.Device = fmt.Sprintf("%v/%v", apiLocation, self.Device)
 	return resc
 }
 
-func (self *Device) unLdify() Device {
+func (self *Device) unLdify(apiLocation string) Device {
 	rc := self.copy()
 	for i, res := range rc.Resources {
-		rc.Resources[i] = res.unLdify()
+		rc.Resources[i] = res.unLdify(apiLocation)
 	}
-	rc.Id = strings.TrimPrefix(self.Id, CatalogBaseUrl+"/")
+	rc.Id = strings.TrimPrefix(self.Id, apiLocation+"/")
 	return rc
 }
 
-func (self *Resource) unLdify() Resource {
+func (self *Resource) unLdify(apiLocation string) Resource {
 	resc := self.copy()
-	resc.Id = strings.TrimPrefix(self.Id, CatalogBaseUrl+"/")
-	resc.Device = strings.TrimPrefix(self.Device, CatalogBaseUrl+"/")
+	resc.Id = strings.TrimPrefix(self.Id, apiLocation+"/")
+	resc.Device = strings.TrimPrefix(self.Device, apiLocation+"/")
 	return resc
 }
 
@@ -117,7 +120,7 @@ func (self ReadableCatalogAPI) collectionFromDevices(devices []Device, page, per
 	respResources := make([]Resource, 0, self.catalogStorage.getResourcesCount())
 
 	for _, d := range devices {
-		dld := d.ldify()
+		dld := d.ldify(self.apiLocation)
 		for _, res := range dld.Resources {
 			respResources = append(respResources, res)
 		}
@@ -129,9 +132,9 @@ func (self ReadableCatalogAPI) collectionFromDevices(devices []Device, page, per
 	}
 
 	return &Collection{
-		Context:   self.contextUrl,
-		Id:        CatalogBaseUrl,
-		Type:      CollectionType,
+		Context:   self.ctxPathRoot + CtxPathCatalog,
+		Id:        self.apiLocation,
+		Type:      ApiCollectionType,
 		Devices:   respDevices,
 		Resources: respResources,
 		Page:      page,
@@ -155,11 +158,10 @@ func (self ReadableCatalogAPI) paginatedDeviceFromDevice(d Device, page, perPage
 	}
 
 	pageResourceIds := catalog.GetPageOfSlice(resourceIds, page, perPage, MaxPerPage)
-	fmt.Println(pageResourceIds)
 	for _, id := range pageResourceIds {
 		for _, r := range d.Resources {
 			if r.Id == id {
-				pd.Resources = append(pd.Resources, r.ldify())
+				pd.Resources = append(pd.Resources, r.ldify(self.apiLocation))
 			}
 		}
 	}
@@ -177,7 +179,7 @@ func (self ReadableCatalogAPI) List(w http.ResponseWriter, req *http.Request) {
 	coll := self.collectionFromDevices(devices, page, perPage, total)
 
 	b, _ := json.Marshal(coll)
-	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
+	w.Header().Set("Content-Type", "application/ld+json;version="+ApiVersion)
 	w.Write(b)
 
 	return
@@ -215,7 +217,7 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 		data, err = self.catalogStorage.pathFilterResource(fpath, fop, fvalue)
 		if data.(Resource).Id != "" {
 			res := data.(Resource)
-			data = res.ldify()
+			data = res.ldify(self.apiLocation)
 		}
 
 	case FTypeResources:
@@ -230,7 +232,7 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 	}
 
 	b, _ := json.Marshal(data)
-	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
+	w.Header().Set("Content-Type", "application/ld+json;version="+ApiVersion)
 	w.Write(b)
 }
 
@@ -256,7 +258,7 @@ func (self ReadableCatalogAPI) Get(w http.ResponseWriter, req *http.Request) {
 	pd := self.paginatedDeviceFromDevice(d, page, perPage)
 	b, _ := json.Marshal(pd)
 
-	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
+	w.Header().Set("Content-Type", "application/ld+json;version="+ApiVersion)
 	w.Write(b)
 	return
 }
@@ -289,8 +291,8 @@ func (self ReadableCatalogAPI) GetResource(w http.ResponseWriter, req *http.Requ
 		return
 	}
 
-	b, _ := json.Marshal(res.ldify())
-	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
+	b, _ := json.Marshal(res.ldify(self.apiLocation))
+	w.Header().Set("Content-Type", "application/ld+json;version="+ApiVersion)
 	w.Write(b)
 	return
 }
@@ -314,8 +316,8 @@ func (self WritableCatalogAPI) Add(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
-	w.Header().Set("Location", fmt.Sprintf("%s/%s", CatalogBaseUrl, d.Id))
+	w.Header().Set("Content-Type", "application/ld+json;version="+ApiVersion)
+	w.Header().Set("Location", fmt.Sprintf("%s/%s", self.apiLocation, d.Id))
 	w.WriteHeader(http.StatusCreated)
 	return
 }
@@ -345,7 +347,7 @@ func (self WritableCatalogAPI) Update(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
+	w.Header().Set("Content-Type", "application/ld+json;version="+ApiVersion)
 	w.WriteHeader(http.StatusOK)
 	return
 }
@@ -364,7 +366,7 @@ func (self WritableCatalogAPI) Delete(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/ld+json;version="+CurrentApiVersion)
+	w.Header().Set("Content-Type", "application/ld+json;version="+ApiVersion)
 	w.WriteHeader(http.StatusOK)
 	return
 }

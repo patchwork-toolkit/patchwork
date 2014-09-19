@@ -4,15 +4,15 @@ import (
 	"testing"
 )
 
-func TestNewCatalogMemoryStorage(t *testing.T) {
-	storage := NewCatalogMemoryStorage()
+func TestNewMemoryStorage(t *testing.T) {
+	storage := NewMemoryStorage()
 	if storage == nil {
 		t.Fail()
 	}
 }
 
 func TestNewLocalCatalogClient(t *testing.T) {
-	storage := NewCatalogMemoryStorage()
+	storage := NewMemoryStorage()
 	catalogClient := NewLocalCatalogClient(storage)
 	if catalogClient == nil {
 		t.Fail()
@@ -24,7 +24,7 @@ func TestAddDevice(t *testing.T) {
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
 	r.Id = uuid + "/" + "DeviceName"
 
-	storage := NewCatalogMemoryStorage()
+	storage := NewMemoryStorage()
 	err := storage.add(*r)
 	if err != nil {
 		t.Errorf("Received unexpected error: %v", err.Error())
@@ -35,7 +35,7 @@ func TestUpdateDevice(t *testing.T) {
 	r := &Device{}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
 	r.Id = uuid + "/" + "DeviceName"
-	storage := NewCatalogMemoryStorage()
+	storage := NewMemoryStorage()
 
 	err := storage.add(*r)
 	if err != nil {
@@ -55,7 +55,7 @@ func TestGetDevice(t *testing.T) {
 	}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
 	r.Id = uuid + "/" + "DeviceName"
-	storage := NewCatalogMemoryStorage()
+	storage := NewMemoryStorage()
 
 	err := storage.add(*r)
 	if err != nil {
@@ -76,7 +76,7 @@ func TestDeleteDevice(t *testing.T) {
 	r := &Device{}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
 	r.Id = uuid + "/" + "DeviceName"
-	storage := NewCatalogMemoryStorage()
+	storage := NewMemoryStorage()
 
 	err := storage.add(*r)
 	if err != nil {
@@ -99,7 +99,7 @@ func TestGetManyDevices(t *testing.T) {
 	r := Resource{
 		Name: "TestResource",
 	}
-	storage := NewCatalogMemoryStorage()
+	storage := NewMemoryStorage()
 	// Add 10 entries
 	for i := 0; i < 11; i++ {
 		d := &Device{

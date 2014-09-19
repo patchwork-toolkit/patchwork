@@ -349,7 +349,7 @@ func (self *MemoryStorage) pathFilterResources(path, op, value string, page, per
 	return ress, len(resourceIds), nil
 }
 
-func NewCatalogMemoryStorage() *MemoryStorage {
+func NewMemoryStorage() *MemoryStorage {
 	storage := &MemoryStorage{
 		devices:   make(map[string]StoredDevice),
 		resources: make(map[string]Resource),

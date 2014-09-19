@@ -5,12 +5,6 @@ import (
 	"time"
 )
 
-const (
-	CatalogBaseUrl   = "/dc"
-	DnssdServiceType = "_patchwork-dc._tcp"
-	MaxPerPage       = 100
-)
-
 var ErrorNotFound = errors.New("NotFound")
 
 // Structs

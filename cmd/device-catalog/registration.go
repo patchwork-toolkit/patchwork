@@ -47,11 +47,11 @@ func registrationFromConfig(config *Config) *sc.ServiceConfig {
 
 	// meta
 	serviceConfig.Meta["serviceType"] = dc.DnssdServiceType
-	serviceConfig.Meta["apiVersion"] = dc.CurrentApiVersion
+	serviceConfig.Meta["apiVersion"] = dc.ApiVersion
 
 	// protocols
 	// port from the bind port, address from the public address
-	serviceConfig.Protocols[0].Endpoint["url"] = fmt.Sprintf("http://%s%s:%s", config.PublicAddr, dc.CatalogBaseUrl, config.BindPort)
+	serviceConfig.Protocols[0].Endpoint["url"] = fmt.Sprintf("http://%s%s:%s", config.PublicAddr, config.ApiLocation, config.BindPort)
 
 	return serviceConfig
 }

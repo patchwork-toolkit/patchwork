@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 )
 
 type RemoteCatalogClient struct {
-	serverEndpoint string // http://addr:port
+	serverEndpoint *url.URL
 }
 
-func deviceFromResponse(res *http.Response) (Device, error) {
+func deviceFromResponse(res *http.Response, apiLocation string) (Device, error) {
 	var d Device
 	body, err := ioutil.ReadAll(res.Body)
 	res.Body.Close()
@@ -24,18 +25,24 @@ func deviceFromResponse(res *http.Response) (Device, error) {
 	if err != nil {
 		return d, err
 	}
-	d = d.unLdify()
+	d = d.unLdify(apiLocation)
 	return d, nil
 }
 
 func NewRemoteCatalogClient(serverEndpoint string) *RemoteCatalogClient {
+	// Check if serverEndpoint is a correct URL
+	endpointUrl, err := url.Parse(serverEndpoint)
+	if err != nil {
+		return &RemoteCatalogClient{}
+	}
+
 	return &RemoteCatalogClient{
-		serverEndpoint: serverEndpoint,
+		serverEndpoint: endpointUrl,
 	}
 }
 
 func (self *RemoteCatalogClient) Get(id string) (Device, error) {
-	res, err := http.Get(fmt.Sprintf("%v%v/%v", self.serverEndpoint, CatalogBaseUrl, id))
+	res, err := http.Get(fmt.Sprintf("%v/%v", self.serverEndpoint, id))
 	if err != nil {
 		return Device{}, err
 	}
@@ -45,12 +52,12 @@ func (self *RemoteCatalogClient) Get(id string) (Device, error) {
 	} else if res.StatusCode != http.StatusOK {
 		return Device{}, fmt.Errorf("%v", res.StatusCode)
 	}
-	return deviceFromResponse(res)
+	return deviceFromResponse(res, self.serverEndpoint.Path)
 }
 
 func (self *RemoteCatalogClient) Add(d Device) error {
 	b, _ := json.Marshal(d)
-	_, err := http.Post(self.serverEndpoint+CatalogBaseUrl+"/", "application/ld+json", bytes.NewReader(b))
+	_, err := http.Post(self.serverEndpoint.String()+"/", "application/ld+json", bytes.NewReader(b))
 	if err != nil {
 		return err
 	}
@@ -59,7 +66,7 @@ func (self *RemoteCatalogClient) Add(d Device) error {
 
 func (self *RemoteCatalogClient) Update(id string, d Device) error {
 	b, _ := json.Marshal(d)
-	req, err := http.NewRequest("PUT", fmt.Sprintf("%v%v/%v", self.serverEndpoint, CatalogBaseUrl, id), bytes.NewReader(b))
+	req, err := http.NewRequest("PUT", fmt.Sprintf("%v/%v", self.serverEndpoint, id), bytes.NewReader(b))
 	if err != nil {
 		return err
 	}
@@ -78,7 +85,7 @@ func (self *RemoteCatalogClient) Update(id string, d Device) error {
 }
 
 func (self *RemoteCatalogClient) Delete(id string) error {
-	req, err := http.NewRequest("DELETE", fmt.Sprintf("%v%v/%v", self.serverEndpoint, CatalogBaseUrl, id), bytes.NewReader([]byte{}))
+	req, err := http.NewRequest("DELETE", fmt.Sprintf("%v/%v", self.serverEndpoint, id), bytes.NewReader([]byte{}))
 	if err != nil {
 		return err
 	}
@@ -99,8 +106,8 @@ func (self *RemoteCatalogClient) Delete(id string) error {
 
 func (self *RemoteCatalogClient) GetMany(page int, perPage int) ([]Device, int, error) {
 	res, err := http.Get(
-		fmt.Sprintf("%s%s?%s=%s&%s=%s",
-			self.serverEndpoint, CatalogBaseUrl, GetParamPage, page, GetParamPerPage, perPage))
+		fmt.Sprintf("%s?%s=%s&%s=%s",
+			self.serverEndpoint, GetParamPage, page, GetParamPerPage, perPage))
 	if err != nil {
 		return nil, 0, err
 	}
@@ -125,7 +132,7 @@ func (self *RemoteCatalogClient) GetMany(page int, perPage int) ([]Device, int, 
 				d.Resources = append(d.Resources, res)
 			}
 		}
-		devs = append(devs, d.unLdify())
+		devs = append(devs, d.unLdify(self.serverEndpoint.Path))
 	}
 	return devs, len(coll.Devices), nil
 }
