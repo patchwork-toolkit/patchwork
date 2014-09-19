@@ -4,8 +4,8 @@ import (
 	"testing"
 )
 
-func TestNewCatalogStorage(t *testing.T) {
-	storage := NewCatalogMemoryStorage()
+func TestNewStorage(t *testing.T) {
+	storage := NewMemoryStorage()
 	if storage == nil {
 		t.Fail()
 	}
@@ -16,7 +16,7 @@ func TestAddService(t *testing.T) {
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
 	r.Id = uuid + "/" + "ServiceName"
 
-	storage := NewCatalogMemoryStorage()
+	storage := NewMemoryStorage()
 	err := storage.add(*r)
 	if err != nil {
 		t.Errorf("Received unexpected error: %v", err.Error())
@@ -28,7 +28,7 @@ func TestUpdateService(t *testing.T) {
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
 	r.Id = uuid + "/" + "ServiceName"
 
-	storage := NewCatalogMemoryStorage()
+	storage := NewMemoryStorage()
 	err := storage.add(*r)
 	if err != nil {
 		t.Errorf("Unexpected error on add: %v", err.Error())
@@ -49,7 +49,7 @@ func TestGetService(t *testing.T) {
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
 	r.Id = uuid + "/" + "ServiceName"
 
-	storage := NewCatalogMemoryStorage()
+	storage := NewMemoryStorage()
 	err := storage.add(*r)
 	if err != nil {
 		t.Errorf("Unexpected error on add: %v", err.Error())
@@ -69,7 +69,7 @@ func TestDeleteService(t *testing.T) {
 	r := &Service{}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
 	r.Id = uuid + "/" + "ServiceName"
-	storage := NewCatalogMemoryStorage()
+	storage := NewMemoryStorage()
 	err := storage.add(*r)
 	if err != nil {
 		t.Errorf("Unexpected error on add: %v", err.Error())
@@ -88,7 +88,7 @@ func TestDeleteService(t *testing.T) {
 
 func TestGetManyServices(t *testing.T) {
 	r := &Service{}
-	storage := NewCatalogMemoryStorage()
+	storage := NewMemoryStorage()
 	// Add 10 entries
 	for i := 0; i < 11; i++ {
 		r.Id = "TestID" + "/" + string(i)

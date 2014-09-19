@@ -14,6 +14,7 @@ import (
 
 const (
 	CatalogBackendMemory = "memory"
+	StaticLocation       = "/static"
 )
 
 var (
@@ -40,40 +41,40 @@ func main() {
 
 	config, err := loadConfig(*confPath)
 	if err != nil {
-		log.Fatalf("Error reading config file %v:%v", *confPath, err)
+		log.Fatalf("Error reading config file %v: %v", *confPath, err)
 	}
 	staticDir = config.StaticDir
 
 	var cat catalog.CatalogStorage
 
-	switch config.Storage {
+	switch config.Storage.Type {
 	case CatalogBackendMemory:
-		cat = catalog.NewCatalogMemoryStorage()
+		cat = catalog.NewMemoryStorage()
 	}
 
-	api := catalog.NewWritableCatalogAPI(cat, "/static/ctx/catalog.jsonld")
+	api := catalog.NewWritableCatalogAPI(cat, config.ApiLocation, StaticLocation)
 
 	m := pat.New()
 	// writable api
-	m.Post(catalog.CatalogBaseUrl+"/", http.HandlerFunc(api.Add))
+	m.Post(config.ApiLocation+"/", http.HandlerFunc(api.Add))
 
 	m.Get(fmt.Sprintf("%s/%s/%s",
-		catalog.CatalogBaseUrl, catalog.PatternHostid, catalog.PatternReg),
+		config.ApiLocation, catalog.PatternHostid, catalog.PatternReg),
 		http.HandlerFunc(api.Get))
 
 	m.Get(fmt.Sprintf("%s/%s/%s/%s/%s",
-		catalog.CatalogBaseUrl, catalog.PatternFType, catalog.PatternFPath, catalog.PatternFOp, catalog.PatternFValue),
+		config.ApiLocation, catalog.PatternFType, catalog.PatternFPath, catalog.PatternFOp, catalog.PatternFValue),
 		http.HandlerFunc(api.Filter))
 
 	m.Put(fmt.Sprintf("%s/%s/%s",
-		catalog.CatalogBaseUrl, catalog.PatternHostid, catalog.PatternReg),
+		config.ApiLocation, catalog.PatternHostid, catalog.PatternReg),
 		http.HandlerFunc(api.Update))
 
 	m.Del(fmt.Sprintf("%s/%s/%s",
-		catalog.CatalogBaseUrl, catalog.PatternHostid, catalog.PatternReg),
+		config.ApiLocation, catalog.PatternHostid, catalog.PatternReg),
 		http.HandlerFunc(api.Delete))
 
-	m.Get(catalog.CatalogBaseUrl, http.HandlerFunc(api.List))
+	m.Get(config.ApiLocation, http.HandlerFunc(api.List))
 
 	// static
 	m.Get("/static/", http.HandlerFunc(staticHandler))
@@ -90,7 +91,7 @@ func main() {
 		}
 	*/
 
-	log.Printf("Starting standalone Service Catalog at %v:%v%v", config.BindAddr, config.BindPort, catalog.CatalogBaseUrl)
+	log.Printf("Starting standalone Service Catalog at %v:%v%v", config.BindAddr, config.BindPort, config.ApiLocation)
 
 	// Listen and Serve
 	endpoint := fmt.Sprintf("%v:%v", config.BindAddr, strconv.Itoa(config.BindPort))

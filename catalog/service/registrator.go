@@ -10,8 +10,7 @@ import (
 )
 
 const (
-	minKeepaliveSec         = 5
-	serviceRegistrationType = "Service"
+	minKeepaliveSec = 5
 )
 
 /*
@@ -67,6 +66,11 @@ func (self *Registrator) RegisterService(config *ServiceConfig, keepalive bool) 
 			log.Printf("Error accessing the catalog: %v\n", err)
 			return err
 		}
+		_, err = self.client.Get(reg.Id)
+		if err != nil {
+			log.Printf("Could not register service %v\n", reg.Id)
+			return err
+		}
 		log.Printf("Added Service registration %v\n", reg.Id)
 	} else if err != nil {
 		log.Printf("Error accessing the catalog: %v\n", err)
@@ -113,7 +117,7 @@ func (self *Registrator) DeregisterService(config *ServiceConfig) error {
 func registrationFromConfig(config *ServiceConfig) Service {
 	reg := Service{}
 	reg.Id = config.Host + "/" + config.Name
-	reg.Type = serviceRegistrationType
+	reg.Type = ApiRegistrationType
 	reg.Name = config.Name
 	reg.Description = config.Description
 	reg.Meta = config.Meta

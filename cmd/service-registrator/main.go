@@ -25,12 +25,12 @@ func main() {
 	config, err := registrator.LoadConfigFromFile(*confPath)
 
 	if err != nil {
-		log.Fatal("Unable to read service configuration from file:", err)
+		log.Fatal("Unable to read service configuration from file: ", err)
 	}
 
 	err = registrator.RegisterService(config, true)
 	if err != nil {
-		log.Fatal("Unable to register service in the catalog:", err)
+		log.Fatal("Unable to register service in the catalog: ", err)
 	}
 
 	// Ctrl+C handling

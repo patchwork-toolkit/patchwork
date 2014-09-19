@@ -191,7 +191,7 @@ func (self *MemoryStorage) reindexEntries() {
 	sort.Strings(self.index)
 }
 
-func NewCatalogMemoryStorage() *MemoryStorage {
+func NewMemoryStorage() *MemoryStorage {
 	storage := &MemoryStorage{
 		data:  make(map[string]Service),
 		index: []string{},
