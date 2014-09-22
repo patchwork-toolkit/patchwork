@@ -30,19 +30,11 @@ func main() {
 
 	// Publish device data to MQTT (if require)
 	mqttPublisher := newMQTTPublisher(config)
-	if mqttPublisher != nil {
-		err = mqttPublisher.connect()
-		if err != nil {
-			mqttPublisher = nil
-			log.Printf("Failed to connected to MQTT broker: %v\n", err.Error())
-		} else {
-			go mqttPublisher.start()
-		}
-	}
 
 	// Start the agent programs and establish internal communication
 	agentManager := newAgentManager(config)
 	if mqttPublisher != nil {
+		go mqttPublisher.start()
 		agentManager.setPublishingChannel(mqttPublisher.dataInbox())
 	}
 	go agentManager.start()

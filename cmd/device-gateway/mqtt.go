@@ -4,6 +4,7 @@ import (
 	"fmt"
 	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
 	"log"
+	"time"
 )
 
 type MQTTPublisher struct {
@@ -47,7 +48,7 @@ func newMQTTPublisher(conf *Config) *MQTTPublisher {
 	// Prepare MQTT connection opts
 	broker := fmt.Sprintf("tcp://%s:%v", config.Host, config.Port)
 	clientId := conf.Id
-	connOpts := MQTT.NewClientOptions().AddBroker(broker).SetClientId(clientId).SetCleanSession(true)
+	connOpts := MQTT.NewClientOptions().AddBroker(broker).SetClientId(clientId).SetCleanSession(true).SetOnConnectionLost(onConnectionLost)
 
 	// Create and return publisher
 	publisher := &MQTTPublisher{
@@ -62,21 +63,19 @@ func (self *MQTTPublisher) dataInbox() chan<- AgentResponse {
 	return self.dataCh
 }
 
-func (self *MQTTPublisher) connect() error {
-	log.Println("MQTTPublisher.connect()")
-	_, err := self.client.Start()
-	if err != nil {
-		return err
-	}
-	log.Printf("MQTTPublisher: Connected to broker tcp://%s:%v", self.config.Host, self.config.Port)
-	return nil
-}
-
 func (self *MQTTPublisher) start() {
 	log.Println("MQTTPublisher.start()")
+	// start the connection routine
+	log.Printf("MQTTPublisher: Will connect to the broker tcp://%s:%v", self.config.Host, self.config.Port)
+	go connect(self.client, 0)
+
 	qos := 1
 	prefix := self.config.Prefix
 	for resp := range self.dataCh {
+		if !self.client.IsConnected() {
+			log.Println("MQTTPublisher: got data while not connected to the broker. **discarded**")
+			continue
+		}
 		if resp.IsError {
 			log.Println("MQTTPublisher: data ERROR from agent manager:", string(resp.Payload))
 			continue
@@ -94,4 +93,32 @@ func (self *MQTTPublisher) stop() {
 	if self.client != nil && self.client.IsConnected() {
 		self.client.Disconnect(500)
 	}
+}
+
+func connect(client *MQTT.MqttClient, backOff int) {
+	log.Println("MQTTPublisher.connect() with backOff (sec): ", backOff)
+	// sleep for backOff seconds
+	time.Sleep(time.Duration(backOff) * time.Second)
+	_, err := client.Start()
+
+	if err != nil {
+		log.Printf("Failed to connected to MQTT broker: %v\n", err.Error())
+		// intial backOff 10 sec, every further retry backOff*2 unless <= 10 min
+		if backOff == 0 {
+			backOff = 10
+		} else if backOff <= 600 {
+			backOff *= 2
+		}
+		go connect(client, backOff)
+		return
+	}
+
+	log.Printf("MQTTPublisher: Connected to the broker")
+	return
+}
+
+func onConnectionLost(client *MQTT.MqttClient, reason error) {
+	log.Println("MQTTPulbisher: lost connection to the broker: ", reason.Error())
+	// FIXME: bug in mqtt library (panic on reconnect)?
+	// go connect(client, 0)
 }
