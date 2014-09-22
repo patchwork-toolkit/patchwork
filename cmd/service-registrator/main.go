@@ -10,7 +10,7 @@ import (
 
 var (
 	confPath = flag.String("conf", "", "Path to the service configuration file")
-	endpoint = flag.String("endpoint", "http://localhost:8081", "Service Catalog endpoint")
+	endpoint = flag.String("endpoint", "http://localhost:8081/sc", "Service Catalog endpoint")
 )
 
 func main() {
