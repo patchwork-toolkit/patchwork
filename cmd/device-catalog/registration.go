@@ -11,7 +11,6 @@ import (
 const (
 	registrationTemplate = `
 	{
-	  "name": "DeviceCatalog",
 	  "meta": {
 	    "serviceType": "",
 	    "apiVersion": ""
@@ -42,6 +41,7 @@ func registrationFromConfig(config *Config) *sc.ServiceConfig {
 	serviceConfig := &sc.ServiceConfig{}
 
 	json.Unmarshal([]byte(registrationTemplate), serviceConfig)
+	serviceConfig.Name = dc.ApiCollectionType
 	serviceConfig.Host = config.PublicAddr
 	serviceConfig.Description = config.Description
 
@@ -51,7 +51,7 @@ func registrationFromConfig(config *Config) *sc.ServiceConfig {
 
 	// protocols
 	// port from the bind port, address from the public address
-	serviceConfig.Protocols[0].Endpoint["url"] = fmt.Sprintf("http://%s%s:%s", config.PublicAddr, config.ApiLocation, config.BindPort)
+	serviceConfig.Protocols[0].Endpoint["url"] = fmt.Sprintf("http://%v:%v%v", config.PublicAddr, config.BindPort, config.ApiLocation)
 
 	return serviceConfig
 }
