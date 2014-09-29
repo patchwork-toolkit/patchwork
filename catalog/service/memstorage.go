@@ -38,11 +38,9 @@ func (self *MemoryStorage) add(s Service) error {
 }
 
 func (self *MemoryStorage) update(id string, s Service) error {
-	var su Service
-
 	self.mutex.Lock()
 
-	_, ok := self.data[id]
+	su, ok := self.data[id]
 	if !ok {
 		self.mutex.Unlock()
 		return ErrorNotFound
