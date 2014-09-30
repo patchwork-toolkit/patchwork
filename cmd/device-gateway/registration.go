@@ -46,7 +46,7 @@ func registerDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 				} else if proto.Type == ProtocolTypeMQTT {
 					mqtt, ok := config.Protocols[ProtocolTypeMQTT].(MqttProtocol)
 					if ok {
-						p.Endpoint["broker"] = fmt.Sprintf("tcp://%s:%v", mqtt.Host, mqtt.Port)
+						p.Endpoint["broker"] = mqtt.ServerUri
 						p.Endpoint["topic"] = fmt.Sprintf("%s/%v", mqtt.Prefix, r.Id)
 					}
 				}

@@ -1,9 +1,13 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
+	"io/ioutil"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -53,12 +57,9 @@ func newMQTTPublisher(conf *Config) *MQTTPublisher {
 		dataCh:   make(chan AgentResponse),
 	}
 
-	// Prepare MQTT connection opts
-	broker := fmt.Sprintf("tcp://%s:%v", config.Host, config.Port)
-	connOpts := MQTT.NewClientOptions().AddBroker(broker).SetClientId(publisher.clientId).
-		SetCleanSession(true).SetOnConnectionLost(publisher.onConnectionLost)
+	// Configure the MQTT connection
+	publisher.configureMqttConnection()
 
-	publisher.client = MQTT.NewClient(connOpts)
 	return publisher
 }
 
@@ -69,7 +70,7 @@ func (self *MQTTPublisher) dataInbox() chan<- AgentResponse {
 func (self *MQTTPublisher) start() {
 	log.Println("MQTTPublisher.start()")
 	// start the connection routine
-	log.Printf("MQTTPublisher: Will connect to the broker tcp://%s:%v", self.config.Host, self.config.Port)
+	log.Printf("MQTTPublisher: Will connect to the broker %v\n", self.config.ServerUri)
 	go self.connect(0)
 
 	qos := 1
@@ -99,7 +100,7 @@ func (self *MQTTPublisher) stop() {
 }
 
 func (self *MQTTPublisher) connect(backOff int) {
-	log.Printf("MQTTPublisher: connecting to the broker %s:%v, backOff: %v sec\n", self.config.Host, self.config.Port, backOff)
+	log.Printf("MQTTPublisher: connecting to the broker %v, backOff: %v sec\n", self.config.ServerUri, backOff)
 	// sleep for backOff seconds
 	time.Sleep(time.Duration(backOff) * time.Second)
 	_, err := self.client.Start()
@@ -116,7 +117,7 @@ func (self *MQTTPublisher) connect(backOff int) {
 		return
 	}
 
-	log.Printf("MQTTPublisher: connected to the broker %s:%v", self.config.Host, self.config.Port)
+	log.Printf("MQTTPublisher: connected to the broker %v", self.config.ServerUri)
 	return
 }
 
@@ -124,10 +125,52 @@ func (self *MQTTPublisher) onConnectionLost(client *MQTT.MqttClient, reason erro
 	log.Println("MQTTPulbisher: lost connection to the broker: ", reason.Error())
 
 	// Initialize a new client and reconnect
-	broker := fmt.Sprintf("tcp://%s:%v", self.config.Host, self.config.Port)
-	connOpts := MQTT.NewClientOptions().AddBroker(broker).SetClientId(self.clientId).
-		SetCleanSession(true).SetOnConnectionLost(self.onConnectionLost)
+	self.configureMqttConnection()
+	go self.connect(0)
+}
+
+func (self *MQTTPublisher) configureMqttConnection() {
+	connOpts := MQTT.NewClientOptions().
+		AddBroker(self.config.ServerUri).
+		SetClientId(self.clientId).
+		SetCleanSession(true).
+		SetOnConnectionLost(self.onConnectionLost)
+
+	// Username/password authentication
+	if self.config.Username != "" && self.config.Password != "" {
+		connOpts.SetUsername(self.config.Username)
+		connOpts.SetPassword(self.config.Password)
+	}
+
+	// SSL/TLS
+	if strings.HasPrefix(self.config.ServerUri, "ssl") {
+		tlsConfig := &tls.Config{}
+		// Custom CA to auth broker with a self-signed certificate
+		if self.config.CaFile != "" {
+			caFile, err := ioutil.ReadFile(self.config.CaFile)
+			if err != nil {
+				log.Printf("MQTTPublisher: error reading CA file %s:%s\n", self.config.CaFile, err.Error())
+			} else {
+				tlsConfig.RootCAs = x509.NewCertPool()
+				ok := tlsConfig.RootCAs.AppendCertsFromPEM(caFile)
+				if !ok {
+					log.Printf("MQTTPublisher: error parsing the CA certificate %s\n", self.config.CaFile)
+				}
+			}
+		}
+		// Certificate-based client authentication
+		if self.config.CertFile != "" && self.config.KeyFile != "" {
+			cert, err := tls.LoadX509KeyPair(self.config.CertFile, self.config.KeyFile)
+			if err != nil {
+				log.Printf("MQTTPublisher: error loading client TLS credentials: %s\n",
+					err.Error())
+			} else {
+				tlsConfig.Certificates = []tls.Certificate{cert}
+			}
+		}
+
+		connOpts.SetTlsConfig(tlsConfig)
+	}
 
 	self.client = MQTT.NewClient(connOpts)
-	go self.connect(0)
 }

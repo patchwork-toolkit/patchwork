@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -109,13 +110,46 @@ type Config struct {
 func (self *Config) Validate() error {
 	// Check if HTTP is configured
 	if self.Http.BindAddr == "" || self.Http.BindPort == 0 {
-		return errors.New("Invalid config: HTTP has to be properly configured")
+		return fmt.Errorf("HTTP has to be properly configured")
 	}
 
 	// Check if REST protocol is configured
 	_, ok := self.Protocols[ProtocolTypeREST]
 	if !ok {
-		return errors.New("Invalid config: REST protocol has to be configured")
+		return fmt.Errorf("REST protocol has to be configured")
+	}
+
+	_, ok = self.Protocols[ProtocolTypeMQTT]
+	// Check if MQTT configuration is valid
+	if ok {
+		mqttConf := self.Protocols[ProtocolTypeMQTT].(MqttProtocol)
+
+		// Check that ServerUri is a valid URL
+		serverUri, err := url.Parse(mqttConf.ServerUri)
+		if err != nil {
+			return fmt.Errorf("MQTT ServerUri must be a URI in the format scheme://host:port")
+		}
+		if serverUri.Scheme != "tcp" && serverUri.Scheme != "ssl" {
+			return fmt.Errorf("MQTT ServerUri scheme must be either 'tcp' or 'ssl'")
+		}
+
+		// Check that the CA file exists
+		if mqttConf.CaFile != "" {
+			if _, err := os.Stat(mqttConf.CaFile); os.IsNotExist(err) {
+				return fmt.Errorf("MQTT CA file %s does not exist", mqttConf.CaFile)
+			}
+		}
+
+		// Check that the client certificate and key files exist
+		if mqttConf.CertFile != "" || mqttConf.KeyFile != "" {
+			if _, err := os.Stat(mqttConf.CertFile); os.IsNotExist(err) {
+				return fmt.Errorf("MQTT client certificate file %s does not exist", mqttConf.CertFile)
+			}
+
+			if _, err = os.Stat(mqttConf.KeyFile); os.IsNotExist(err) {
+				return fmt.Errorf("MQTT client key file %s does not exist", mqttConf.KeyFile)
+			}
+		}
 	}
 
 	return nil
@@ -157,9 +191,13 @@ type RestProtocol struct {
 }
 
 type MqttProtocol struct {
-	Host   string `json:"host"`
-	Port   int    `json:"port"`
-	Prefix string `json:"prefix"`
+	ServerUri string `json:"serverUri"`
+	Prefix    string `json:"prefix"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	CaFile    string `json:"caFile"`
+	CertFile  string `json:"certFile"`
+	KeyFile   string `json:"keyFile"`
 }
 
 type ProtocolType string
