@@ -2,10 +2,12 @@ package main
 
 import (
 	"flag"
-	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
 	"log"
 	"os"
 	"os/signal"
+
+	"github.com/oleksandr/bonjour"
+	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
 )
 
 var (
@@ -47,25 +49,11 @@ func main() {
 	// Register devices in the local catalog and run periodic remote catalog updates (if required)
 	go registerDevices(config, catalogStorage)
 
-	/*
-		// Announce serice using DNS-SD
-		dnsRegistration, err := dnsRegisterService(config)
-		if err != nil {
-			log.Printf("Failed to perform DNS-SD registration: %v\n", err.Error())
-		}
-
-		or
-
-		consider this:
-		if config.DnssdEnabled {
-			parts := strings.Split(config.Endpoint, ":")
-			port, _ := strconv.Atoi(parts[1])
-			_, err := discovery.DnsRegisterService(config.Name, catalog.DnssdServiceType, port)
-			if err != nil {
-				log.Printf("Failed to perform DNS-SD registration: %v\n", err.Error())
-			}
-		}
-	*/
+	// Register this gateway as a service via DNS-SD
+	bonjourCh, err := bonjour.Register(config.Name, BonjourServiceName, "", config.Http.BindPort, []string{}, nil)
+	if err != nil {
+		log.Printf("Failed to register DNS-SD service: %s", err.Error())
+	}
 
 	// Ctrl+C handling
 	handler := make(chan os.Signal, 1)
@@ -77,15 +65,15 @@ func main() {
 		}
 	}
 
+	// Stop bonjour registration
+	bonjourCh <- true
+
+	// Shutdown all
 	agentManager.stop()
 	if mqttPublisher != nil {
 		mqttPublisher.stop()
 	}
-	/*
-		if dnsRegistration != nil {
-			dnsRegistration.Stop()
-		}
-	*/
+
 	// Remove registratoins from configured remote catalogs
 	if len(config.Catalog) > 0 {
 		unregisterDevices(config, catalogStorage)
