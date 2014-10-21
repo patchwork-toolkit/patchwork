@@ -9,5 +9,5 @@ const (
 	AgentResponseCacheTTL time.Duration = time.Duration(3) * time.Second
 
 	// DNS-SD service name (type)
-	BonjourServiceName = "_pw-dgw._tcp"
+	DnssdServiceType = "_pw-dgw._tcp"
 )

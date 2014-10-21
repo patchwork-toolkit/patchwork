@@ -50,7 +50,7 @@ func main() {
 	go registerDevices(config, catalogStorage)
 
 	// Register this gateway as a service via DNS-SD
-	bonjourCh, err := bonjour.Register(config.Name, BonjourServiceName, "", config.Http.BindPort, []string{}, nil)
+	bonjourCh, err := bonjour.Register(config.Name, DnssdServiceType, "", config.Http.BindPort, []string{}, nil)
 	if err != nil {
 		log.Printf("Failed to register DNS-SD service: %s", err.Error())
 	}
