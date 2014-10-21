@@ -50,9 +50,14 @@ func main() {
 	go registerDevices(config, catalogStorage)
 
 	// Register this gateway as a service via DNS-SD
-	bonjourCh, err := bonjour.Register(config.Name, DnssdServiceType, "", config.Http.BindPort, []string{}, nil)
-	if err != nil {
-		log.Printf("Failed to register DNS-SD service: %s", err.Error())
+	var bonjourCh chan<- bool
+	if config.DnssdEnabled {
+		bonjourCh, err = bonjour.Register(config.Name, DnssdServiceType, "", config.Http.BindPort, []string{}, nil)
+		if err != nil {
+			log.Printf("Failed to register DNS-SD service: %s", err.Error())
+		} else {
+			log.Println("Registered service via DNS-SD using type", DnssdServiceType)
+		}
 	}
 
 	// Ctrl+C handling
@@ -66,7 +71,9 @@ func main() {
 	}
 
 	// Stop bonjour registration
-	bonjourCh <- true
+	if bonjourCh != nil {
+		bonjourCh <- true
+	}
 
 	// Shutdown all
 	agentManager.stop()
