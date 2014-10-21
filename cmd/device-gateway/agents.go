@@ -107,7 +107,9 @@ func (self *AgentManager) start() {
 
 		case resp := <-self.agentInbox:
 			// Receive data from agents and cache it
-			//log.Printf("AgentManager: update dataCache for %s with: isError=%v, payload=%s", resp.ResourceId, resp.IsError, string(resp.Payload))
+			if resp.IsError {
+				log.Printf("AgentManager: ERROR received from %s: %s", resp.ResourceId, resp.IsError, string(resp.Payload))
+			}
 
 			// Cache data
 			self.dataCache[resp.ResourceId] = resp
@@ -121,7 +123,7 @@ func (self *AgentManager) start() {
 				// Publish only if resource supports MQTT (and is task/service)
 				for _, p := range resource.Protocols {
 					if p.Type == ProtocolTypeMQTT {
-						if resource.Agent.Type == ExecTypeTask || resource.Agent.Type == ExecTypeService {
+						if resource.Agent.Type == ExecTypeTimer || resource.Agent.Type == ExecTypeService {
 							// Send data with a timeout (to avoid blocking data receival)
 							select {
 							case self.publishOutbox <- resp:

@@ -4,11 +4,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
 	"io/ioutil"
 	"log"
 	"strings"
 	"time"
+
+	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
 )
 
 type MQTTPublisher struct {
