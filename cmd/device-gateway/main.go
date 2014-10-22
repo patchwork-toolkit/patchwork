@@ -52,7 +52,7 @@ func main() {
 	// Register this gateway as a service via DNS-SD
 	var bonjourCh chan<- bool
 	if config.DnssdEnabled {
-		bonjourCh, err = bonjour.Register(config.Name, DnssdServiceType, "", config.Http.BindPort, []string{}, nil)
+		bonjourCh, err = bonjour.Register(config.Description, DnssdServiceType, "", config.Http.BindPort, []string{}, nil)
 		if err != nil {
 			log.Printf("Failed to register DNS-SD service: %s", err.Error())
 		} else {
