@@ -27,13 +27,14 @@ const (
 )
 
 type Collection struct {
-	Context  string    `json:"@context,omitempty"`
-	Id       string    `json:"id"`
-	Type     string    `json:"type"`
-	Services []Service `json:"services"`
-	Page     int       `json:"page"`
-	PerPage  int       `json:"per_page"`
-	Total    int       `json:"total"`
+	Context     string    `json:"@context,omitempty"`
+	Id          string    `json:"id"`
+	Type        string    `json:"type"`
+	Description string    `json:"description"`
+	Services    []Service `json:"services"`
+	Page        int       `json:"page"`
+	PerPage     int       `json:"per_page"`
+	Total       int       `json:"total"`
 }
 
 // Read-only catalog api
@@ -41,6 +42,7 @@ type ReadableCatalogAPI struct {
 	catalogStorage CatalogStorage
 	apiLocation    string
 	ctxPathRoot    string
+	description    string
 }
 
 // Writable catalog api
@@ -48,20 +50,22 @@ type WritableCatalogAPI struct {
 	*ReadableCatalogAPI
 }
 
-func NewReadableCatalogAPI(storage CatalogStorage, apiLocation, staticLocation string) *ReadableCatalogAPI {
+func NewReadableCatalogAPI(storage CatalogStorage, apiLocation, staticLocation, description string) *ReadableCatalogAPI {
 	return &ReadableCatalogAPI{
 		catalogStorage: storage,
 		apiLocation:    apiLocation,
 		ctxPathRoot:    staticLocation + CtxRootDir,
+		description:    description,
 	}
 }
 
-func NewWritableCatalogAPI(storage CatalogStorage, apiLocation, staticLocation string) *WritableCatalogAPI {
+func NewWritableCatalogAPI(storage CatalogStorage, apiLocation, staticLocation, description string) *WritableCatalogAPI {
 	return &WritableCatalogAPI{
 		&ReadableCatalogAPI{
 			catalogStorage: storage,
 			apiLocation:    apiLocation,
 			ctxPathRoot:    staticLocation + CtxRootDir,
+			description:    description,
 		}}
 }
 
@@ -85,13 +89,14 @@ func (self ReadableCatalogAPI) collectionFromServices(services []Service, page, 
 	}
 
 	return &Collection{
-		Context:  self.ctxPathRoot + CtxPathCatalog,
-		Id:       self.apiLocation,
-		Type:     ApiCollectionType,
-		Services: respServices,
-		Page:     page,
-		PerPage:  perPage,
-		Total:    total,
+		Context:     self.ctxPathRoot + CtxPathCatalog,
+		Id:          self.apiLocation,
+		Type:        ApiCollectionType,
+		Description: self.description,
+		Services:    respServices,
+		Page:        page,
+		PerPage:     perPage,
+		Total:       total,
 	}
 }
 

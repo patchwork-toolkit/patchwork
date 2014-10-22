@@ -8,7 +8,7 @@ import (
 )
 
 type Config struct {
-	Name         string        `json:"name"`
+	Description  string        `json:"description"`
 	DnssdEnabled bool          `json:"dnssdEnabled"`
 	BindAddr     string        `json:"bindAddr"`
 	BindPort     int           `json:"bindPort"`

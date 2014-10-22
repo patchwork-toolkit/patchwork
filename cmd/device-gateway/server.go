@@ -119,7 +119,8 @@ func (self *RESTfulAPI) mountResources() {
 }
 
 func (self *RESTfulAPI) mountCatalog(catalogStorage catalog.CatalogStorage) {
-	catalogAPI := catalog.NewReadableCatalogAPI(catalogStorage, CatalogLocation, StaticLocation)
+	catalogAPI := catalog.NewReadableCatalogAPI(catalogStorage, CatalogLocation, StaticLocation,
+		fmt.Sprintf("Local catalog at %s", self.config.Description))
 
 	self.router.Get(fmt.Sprintf("%s/%s/%s/%s/%s",
 		CatalogLocation, catalog.PatternFType, catalog.PatternFPath, catalog.PatternFOp, catalog.PatternFValue),

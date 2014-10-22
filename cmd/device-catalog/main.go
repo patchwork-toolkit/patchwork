@@ -53,7 +53,7 @@ func main() {
 		cat = catalog.NewMemoryStorage()
 	}
 
-	api := catalog.NewWritableCatalogAPI(cat, config.ApiLocation, StaticLocation)
+	api := catalog.NewWritableCatalogAPI(cat, config.ApiLocation, StaticLocation, config.Description)
 
 	m := pat.New()
 	// writable api
