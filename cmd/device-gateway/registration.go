@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
 	"log"
 	"time"
+
+	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
 )
 
 const (

@@ -3,12 +3,13 @@ package device
 import (
 	"errors"
 	"fmt"
-	"github.com/patchwork-toolkit/patchwork/catalog"
 	"log"
 	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/patchwork-toolkit/patchwork/catalog"
 )
 
 // In-memory storage

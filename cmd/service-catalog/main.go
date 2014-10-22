@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+
 	"github.com/bmizerany/pat"
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/service"
 	//"github.com/patchwork-toolkit/patchwork/discovery"

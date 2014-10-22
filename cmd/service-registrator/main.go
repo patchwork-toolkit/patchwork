@@ -2,10 +2,11 @@ package main
 
 import (
 	"flag"
-	catalog "github.com/patchwork-toolkit/patchwork/catalog/service"
 	"log"
 	"os"
 	"os/signal"
+
+	catalog "github.com/patchwork-toolkit/patchwork/catalog/service"
 )
 
 var (

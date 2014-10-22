@@ -3,8 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/bmizerany/pat"
-	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
 	"io/ioutil"
 	"log"
 	"mime"
@@ -12,6 +10,9 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/bmizerany/pat"
+	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
 )
 
 const (

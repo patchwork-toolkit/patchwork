@@ -3,9 +3,10 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
+
 	dc "github.com/patchwork-toolkit/patchwork/catalog/device"
 	sc "github.com/patchwork-toolkit/patchwork/catalog/service"
-	"log"
 )
 
 const (

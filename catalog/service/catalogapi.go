@@ -3,11 +3,12 @@ package service
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/patchwork-toolkit/patchwork/catalog"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/patchwork-toolkit/patchwork/catalog"
 )
 
 const (
