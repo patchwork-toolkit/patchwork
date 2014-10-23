@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
+	"github.com/oleksandr/bonjour"
+	utils "github.com/patchwork-toolkit/patchwork/catalog"
 	dc "github.com/patchwork-toolkit/patchwork/catalog/device"
 	sc "github.com/patchwork-toolkit/patchwork/catalog/service"
 )
@@ -61,10 +64,17 @@ func registrationFromConfig(config *Config) *sc.ServiceConfig {
 func registerService(config *Config) {
 	serviceConfig := registrationFromConfig(config)
 
+	discoveryStarted := false
 	for _, cat := range config.ServiceCatalog {
 		// Ignore endpoint: discover and register
 		if cat.Discover == true {
-			// TODO: implement discovery of service catalog and register in it
+			if !discoveryStarted {
+				// makes no sense to start > 1 discovery of the same type
+				serviceConfig.Ttl = cat.Ttl
+				go utils.DiscoverAndExecute(sc.DnssdServiceType, publishRegistrationHandler(serviceConfig))
+				discoveryStarted = true
+			}
+
 		} else {
 			// Register in the catalog specified by endpoint
 			registrator := sc.NewRegistrator(cat.Endpoint)
@@ -77,6 +87,32 @@ func registerService(config *Config) {
 			if err != nil {
 				log.Printf("Error registering in Service Catalog %v: %v\n", cat.Endpoint, err)
 			}
+		}
+	}
+}
+
+// Create a DiscoverHandler function for registering service in the remote
+// catalog discovered via DNS-SD
+func publishRegistrationHandler(config *sc.ServiceConfig) utils.DiscoverHandler {
+	// registration handling function
+	return func(service *bonjour.ServiceEntry) {
+		// create remote client & publish registrations
+		uri := ""
+		for _, s := range service.Text {
+			if strings.HasPrefix(s, "uri=") {
+				tmp := strings.Split(s, "=")
+				if len(tmp) == 2 {
+					uri = tmp[1]
+					break
+				}
+			}
+		}
+		endpoint := fmt.Sprintf("http://%s:%v%s", service.HostName, service.Port, uri)
+		log.Println("Will use this endpoint for remote SC:", endpoint)
+		registrator := sc.NewRegistrator(endpoint)
+		err := registrator.RegisterService(config, true)
+		if err != nil {
+			log.Printf("Error registering in Service Catalog %v: %v\n", endpoint, err)
 		}
 	}
 }

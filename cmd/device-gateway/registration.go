@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/oleksandr/bonjour"
+	utils "github.com/patchwork-toolkit/patchwork/catalog"
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
 )
 
@@ -14,6 +15,7 @@ const (
 	minKeepaliveSec = 5
 )
 
+// Register devices from a given configuration using provided storage implementation
 func registerDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 	devices := make([]catalog.Device, 0, len(config.Devices))
 	restConfig, _ := config.Protocols[ProtocolTypeREST].(RestProtocol)
@@ -69,10 +71,12 @@ func registerDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 	// Publish to remote catalogs if configured
 	discoveryStarted := false
 	for _, cat := range config.Catalog {
-		if cat.Discover == true && !discoveryStarted {
-			// makes no sense to start > 1 discovery of the same type
-			go discoverAndRegister(cat, devices)
-			discoveryStarted = true
+		if cat.Discover == true {
+			if !discoveryStarted {
+				// makes no sense to start > 1 discovery of the same type
+				go utils.DiscoverAndExecute(catalog.DnssdServiceType, publishRegistrationHandler(devices))
+				discoveryStarted = true
+			}
 		} else {
 			log.Printf("Will publish to remote catalog %v\n", cat.Endpoint)
 			remoteCatalogClient := catalog.NewRemoteCatalogClient(cat.Endpoint)
@@ -81,47 +85,31 @@ func registerDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 	}
 }
 
-func discoverAndRegister(cat Catalog, devices []catalog.Device) {
-	log.Println("Discovering catalog via DNS-SD...")
-
-	services := make(chan *bonjour.ServiceEntry)
-	resolver, err := bonjour.NewResolver(nil)
-	if err != nil {
-		log.Println("Failed to create DNS-SD resolver:", err.Error())
-		return
-	}
-
-	go func(services chan *bonjour.ServiceEntry, exitCh chan<- bool) {
-		for service := range services {
-			log.Println("Catalog discovered:", service.ServiceInstanceName())
-			// stop resolver
-			exitCh <- true
-			// create remote client & publish registrations
-			uri := ""
-			for _, s := range service.Text {
-				if strings.HasPrefix(s, "uri=") {
-					tmp := strings.Split(s, "=")
-					if len(tmp) == 2 {
-						uri = tmp[1]
-						break
-					}
+// Create a DiscoverHandler function for registering devices in the remote
+// catalog discovered via DNS-SD
+func publishRegistrationHandler(devices []catalog.Device) utils.DiscoverHandler {
+	// registration handling function
+	return func(service *bonjour.ServiceEntry) {
+		// create remote client & publish registrations
+		uri := ""
+		for _, s := range service.Text {
+			if strings.HasPrefix(s, "uri=") {
+				tmp := strings.Split(s, "=")
+				if len(tmp) == 2 {
+					uri = tmp[1]
+					break
 				}
 			}
-			endpoint := fmt.Sprintf("http://%s:%v%s", service.HostName, service.Port, uri)
-			log.Println("Will use this endpoint for remote DC:", endpoint)
-			remoteClient := catalog.NewRemoteCatalogClient(endpoint)
-			publishRegistrations(remoteClient, devices, true)
-
-			// exit the loop
-			break
 		}
-	}(services, resolver.Exit)
-
-	if err := resolver.Browse(catalog.DnssdServiceType, "", services); err != nil {
-		log.Printf("Fail to browse services using type %s", DnssdServiceType)
+		endpoint := fmt.Sprintf("http://%s:%v%s", service.HostName, service.Port, uri)
+		log.Println("Will use this endpoint for remote DC:", endpoint)
+		remoteClient := catalog.NewRemoteCatalogClient(endpoint)
+		publishRegistrations(remoteClient, devices, true)
 	}
 }
 
+// Remove registered devices from all catalogs
+//TODO: this should be a deferred call in the registration function
 func unregisterDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 	devices := make([]catalog.Device, 0, len(config.Devices))
 
@@ -135,6 +123,9 @@ func unregisterDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 	for _, cat := range config.Catalog {
 		if cat.Discover == true {
 			//TODO: Catalog discovery
+			// See todo above (near the function name) - the registration should
+			// discover a catalog, register devices and defer the unregister call with
+			// discovered catalog's endpoint (to avoid lookup again)
 		} else {
 			log.Printf("Will remove local devices from remote catalog %v\n", cat.Endpoint)
 			remoteCatalogClient := catalog.NewRemoteCatalogClient(cat.Endpoint)
