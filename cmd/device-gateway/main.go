@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -52,7 +53,13 @@ func main() {
 	// Register this gateway as a service via DNS-SD
 	var bonjourCh chan<- bool
 	if config.DnssdEnabled {
-		bonjourCh, err = bonjour.Register(config.Description, DnssdServiceType, "", config.Http.BindPort, []string{}, nil)
+		restConfig, _ := config.Protocols[ProtocolTypeREST].(RestProtocol)
+		bonjourCh, err = bonjour.Register(config.Description,
+			DnssdServiceType,
+			"",
+			config.Http.BindPort,
+			[]string{fmt.Sprintf("uri=%s", restConfig.Location)},
+			nil)
 		if err != nil {
 			log.Printf("Failed to register DNS-SD service: %s", err.Error())
 		} else {

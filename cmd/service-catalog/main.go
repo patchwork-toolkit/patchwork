@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/bmizerany/pat"
+	"github.com/oleksandr/bonjour"
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/service"
 	//"github.com/patchwork-toolkit/patchwork/discovery"
 	"log"
@@ -83,14 +84,23 @@ func main() {
 	http.Handle("/", m)
 
 	// Announce service using DNS-SD
-	/*
-		if config.DnssdEnabled {
-			_, err := discovery.DnsRegisterService(config.Description, catalog.DnssdServiceType, config.Port)
-			if err != nil {
-				log.Printf("Failed to perform DNS-SD registration: %v\n", err.Error())
-			}
+	var bonjourCh chan<- bool
+	if config.DnssdEnabled {
+		bonjourCh, err = bonjour.Register(config.Description,
+			catalog.DnssdServiceType,
+			"",
+			config.BindPort,
+			[]string{fmt.Sprintf("uri=%s", config.ApiLocation)},
+			nil)
+		if err != nil {
+			log.Printf("Failed to register DNS-SD service: %s", err.Error())
+		} else {
+			log.Println("Registered service via DNS-SD using type", catalog.DnssdServiceType)
+			defer func(ch chan<- bool) {
+				ch <- true
+			}(bonjourCh)
 		}
-	*/
+	}
 
 	log.Printf("Starting standalone Service Catalog at %v:%v%v", config.BindAddr, config.BindPort, config.ApiLocation)
 

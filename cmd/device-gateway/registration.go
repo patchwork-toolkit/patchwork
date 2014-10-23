@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
+	"github.com/oleksandr/bonjour"
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
 )
 
@@ -65,14 +67,55 @@ func registerDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 	log.Printf("Registered %v device(s) in local catalog\n", len(config.Devices))
 
 	// Publish to remote catalogs if configured
+	discoveryStarted := false
 	for _, cat := range config.Catalog {
-		if cat.Discover == true {
-			//TODO: Catalog discovery
+		if cat.Discover == true && !discoveryStarted {
+			// makes no sense to start > 1 discovery of the same type
+			go discoverAndRegister(cat, devices)
+			discoveryStarted = true
 		} else {
 			log.Printf("Will publish to remote catalog %v\n", cat.Endpoint)
 			remoteCatalogClient := catalog.NewRemoteCatalogClient(cat.Endpoint)
 			publishRegistrations(remoteCatalogClient, devices, true)
 		}
+	}
+}
+
+func discoverAndRegister(cat Catalog, devices []catalog.Device) {
+	log.Println("Discovering catalog via DNS-SD...")
+
+	services := make(chan *bonjour.ServiceEntry)
+	resolver, err := bonjour.NewResolver(nil)
+	if err != nil {
+		log.Println("Failed to create DNS-SD resolver:", err.Error())
+		return
+	}
+
+	go func(services chan *bonjour.ServiceEntry, exitCh chan<- bool) {
+		for service := range services {
+			log.Println("Catalog discovered:", service.ServiceInstanceName())
+			// stop resolver
+			exitCh <- true
+			// create remote client & publish registrations
+			uri := ""
+			for _, s := range service.Text {
+				if strings.HasPrefix(s, "uri=") {
+					tmp := strings.Split(s, "=")
+					if len(tmp) == 2 {
+						uri = tmp[1]
+						break
+					}
+				}
+			}
+			endpoint := fmt.Sprintf("http://%s:%v%s", service.HostName, service.Port, uri)
+			log.Println("Will use this endpoint for remote DC:", endpoint)
+			remoteClient := catalog.NewRemoteCatalogClient(endpoint)
+			publishRegistrations(remoteClient, devices, true)
+		}
+	}(services, resolver.Exit)
+
+	if err := resolver.Browse(catalog.DnssdServiceType, "", services); err != nil {
+		log.Printf("Fail to browse services using type %s", DnssdServiceType)
 	}
 }
 
@@ -98,6 +141,7 @@ func unregisterDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 
 }
 
+// Publish given registration using provided catalog client and setup their periodic update if required
 func publishRegistrations(catalogClient catalog.CatalogClient, registrations []catalog.Device, keepalive bool) {
 	for _, lr := range registrations {
 		_, err := catalogClient.Get(lr.Id)
@@ -141,6 +185,7 @@ func publishRegistrations(catalogClient catalog.CatalogClient, registrations []c
 	}
 }
 
+// Remove each given registration from the provided catalog
 func removeRegistrations(catalogClient catalog.CatalogClient, registrations []catalog.Device) {
 	for _, r := range registrations {
 		log.Printf("Removing registration %v\n", r.Id)
@@ -148,6 +193,7 @@ func removeRegistrations(catalogClient catalog.CatalogClient, registrations []ca
 	}
 }
 
+// Recursively & periodically updates given registration
 func keepRegistrationAlive(delay time.Duration, client catalog.CatalogClient, reg catalog.Device) {
 	time.Sleep(delay)
 
