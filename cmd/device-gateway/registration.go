@@ -111,6 +111,9 @@ func discoverAndRegister(cat Catalog, devices []catalog.Device) {
 			log.Println("Will use this endpoint for remote DC:", endpoint)
 			remoteClient := catalog.NewRemoteCatalogClient(endpoint)
 			publishRegistrations(remoteClient, devices, true)
+
+			// exit the loop
+			break
 		}
 	}(services, resolver.Exit)
 
