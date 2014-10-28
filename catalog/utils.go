@@ -3,7 +3,7 @@ package catalog
 import (
 	"log"
 
-	"github.com/oleksandr/bonjour"
+	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/oleksandr/bonjour"
 )
 
 // DNS-SD discovery result handler function type

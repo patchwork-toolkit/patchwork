@@ -4,14 +4,14 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/bmizerany/pat"
-	"github.com/oleksandr/bonjour"
-	catalog "github.com/patchwork-toolkit/patchwork/catalog/service"
-	//"github.com/patchwork-toolkit/patchwork/discovery"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
+
+	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/bmizerany/pat"
+	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/oleksandr/bonjour"
+	catalog "github.com/patchwork-toolkit/patchwork/catalog/service"
 )
 
 const (

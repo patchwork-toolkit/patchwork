@@ -6,7 +6,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/oleksandr/bonjour"
+	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/oleksandr/bonjour"
 	utils "github.com/patchwork-toolkit/patchwork/catalog"
 	dc "github.com/patchwork-toolkit/patchwork/catalog/device"
 	sc "github.com/patchwork-toolkit/patchwork/catalog/service"

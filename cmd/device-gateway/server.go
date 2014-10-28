@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bmizerany/pat"
+	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/bmizerany/pat"
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
 )
 
