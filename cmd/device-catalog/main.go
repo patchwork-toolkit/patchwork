@@ -63,7 +63,7 @@ func main() {
 	http.HandleFunc(fmt.Sprintf("%s/%s/%s/%s",
 		config.ApiLocation, catalog.PatternUuid, catalog.PatternReg, catalog.PatternRes),
 		api.GetResource)
-	mhttp.HandleFunc(fmt.Sprintf("%s/%s/%s/%s/%s",
+	http.HandleFunc(fmt.Sprintf("%s/%s/%s/%s/%s",
 		config.ApiLocation, catalog.PatternFType, catalog.PatternFPath, catalog.PatternFOp, catalog.PatternFValue),
 		api.Filter)
 	http.HandleFunc(fmt.Sprintf("%s/%s/%s",
