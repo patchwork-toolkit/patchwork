@@ -12,52 +12,46 @@ import (
 	"strings"
 	"time"
 
-	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/bmizerany/pat"
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
 )
 
-const (
-	StaticLocation  = "/static"
-	CatalogLocation = "/dc"
-)
-
+// errorResponse used to serialize errors into JSON for RESTful responses
 type errorResponse struct {
 	Error string `json:"error"`
 }
 
+// RESTfulAPI contains all required configuration for running a RESTful API
+// for device gateway
 type RESTfulAPI struct {
 	config     *Config
 	restConfig *RestProtocol
-	router     *pat.PatternServeMux
+	serverMux  *http.ServeMux
 	dataCh     chan<- DataRequest
 }
 
+// Constructs a RESTfulAPI data structure
 func newRESTfulAPI(conf *Config, dataCh chan<- DataRequest) *RESTfulAPI {
 	restConfig, _ := conf.Protocols[ProtocolTypeREST].(RestProtocol)
 
 	api := &RESTfulAPI{
 		config:     conf,
 		restConfig: &restConfig,
-		router:     pat.New(),
+		serverMux:  http.NewServeMux(),
 		dataCh:     dataCh,
 	}
 	return api
 }
 
+// Setup all routers, handlers and start a HTTP server (blocking call)
 func (self *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
 	self.mountCatalog(catalogStorage)
 	self.mountResources()
-	self.router.Get("/dashboard", self.dashboardHandler(*confPath))
-	self.router.Post("/dashboard", self.dashboardHandler(*confPath))
-	self.router.Get(self.restConfig.Location, self.indexHandler())
-	self.router.Get(StaticLocation+"/", self.staticHandler())
-
-	// Mount router to server
-	serverMux := http.NewServeMux()
-	serverMux.Handle("/", self.router)
+	self.serverMux.Handle("/dashboard", self.dashboardHandler(*confPath))
+	self.serverMux.Handle(self.restConfig.Location, self.indexHandler())
+	self.serverMux.Handle(StaticLocation, self.staticHandler())
 
 	s := &http.Server{
-		Handler:        serverMux,
+		Handler:        self.serverMux,
 		ReadTimeout:    30 * time.Second,
 		WriteTimeout:   30 * time.Second,
 		MaxHeaderBytes: 1 << 20,
@@ -78,6 +72,7 @@ func (self *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
 	}
 }
 
+// Create a HTTP handler to serve and update dashboard configuration
 func (self *RESTfulAPI) dashboardHandler(confPath string) http.HandlerFunc {
 	dashboardConfPath := filepath.Join(filepath.Dir(confPath), "dashboard.json")
 
@@ -154,9 +149,9 @@ func (self *RESTfulAPI) mountResources() {
 				for _, method := range protocol.Methods {
 					switch method {
 					case "GET":
-						self.router.Get(uri, self.createResourceGetHandler(rid))
+						self.serverMux.Handle(uri, self.createResourceGetHandler(rid))
 					case "PUT":
-						self.router.Put(uri, self.createResourcePutHandler(rid))
+						self.serverMux.Handle(uri, self.createResourcePutHandler(rid))
 					}
 				}
 			}
@@ -168,19 +163,20 @@ func (self *RESTfulAPI) mountCatalog(catalogStorage catalog.CatalogStorage) {
 	catalogAPI := catalog.NewReadableCatalogAPI(catalogStorage, CatalogLocation, StaticLocation,
 		fmt.Sprintf("Local catalog at %s", self.config.Description))
 
-	self.router.Get(fmt.Sprintf("%s/%s/%s/%s/%s",
+	self.serverMux.Handle(fmt.Sprintf("%s/%s/%s/%s/%s",
 		CatalogLocation, catalog.PatternFType, catalog.PatternFPath, catalog.PatternFOp, catalog.PatternFValue),
 		http.HandlerFunc(catalogAPI.Filter))
 
-	self.router.Get(fmt.Sprintf("%s/%s/%s/%s",
+	self.serverMux.Handle(fmt.Sprintf("%s/%s/%s/%s",
 		CatalogLocation, catalog.PatternUuid, catalog.PatternReg, catalog.PatternRes),
 		http.HandlerFunc(catalogAPI.GetResource))
 
-	self.router.Get(fmt.Sprintf("%s/%s/%s",
+	self.serverMux.Handle(fmt.Sprintf("%s/%s/%s",
 		CatalogLocation, catalog.PatternUuid, catalog.PatternReg),
 		http.HandlerFunc(catalogAPI.Get))
 
-	self.router.Get(CatalogLocation, http.HandlerFunc(catalogAPI.List))
+	self.serverMux.Handle(CatalogLocation, http.HandlerFunc(catalogAPI.List))
+
 	log.Printf("Mounted local catalog at %v", CatalogLocation)
 }
 

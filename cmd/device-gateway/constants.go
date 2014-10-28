@@ -10,4 +10,10 @@ const (
 
 	// DNS-SD service name (type)
 	DnssdServiceType = "_pw-dgw._tcp"
+
+	// Static resources URL mounting point
+	StaticLocation = "/static"
+
+	// Device Catalog URL mounting point
+	CatalogLocation = "/dc"
 )
