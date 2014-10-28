@@ -8,6 +8,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -46,6 +47,8 @@ func newRESTfulAPI(conf *Config, dataCh chan<- DataRequest) *RESTfulAPI {
 func (self *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
 	self.mountCatalog(catalogStorage)
 	self.mountResources()
+	self.router.Get("/dashboard", self.dashboardHandler(*confPath))
+	self.router.Post("/dashboard", self.dashboardHandler(*confPath))
 	self.router.Get(self.restConfig.Location, self.indexHandler())
 	self.router.Get(StaticLocation+"/", self.staticHandler())
 
@@ -72,6 +75,49 @@ func (self *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
 	err = s.Serve(ln)
 	if err != nil {
 		log.Println(err.Error())
+	}
+}
+
+func (self *RESTfulAPI) dashboardHandler(confPath string) http.HandlerFunc {
+	dashboardConfPath := filepath.Join(filepath.Dir(confPath), "dashboard.json")
+
+	return func(rw http.ResponseWriter, req *http.Request) {
+		rw.Header().Set("Content-Type", "application/json")
+
+		if req.Method == "POST" {
+			body, err := ioutil.ReadAll(req.Body)
+			req.Body.Close()
+			if err != nil {
+				self.respondWithBadRequest(rw, err.Error())
+				return
+			}
+
+			err = ioutil.WriteFile(dashboardConfPath, body, 0755)
+			if err != nil {
+				rw.WriteHeader(http.StatusInternalServerError)
+				errData := map[string]string{"error": err.Error()}
+				b, _ := json.Marshal(errData)
+				rw.Write(b)
+				return
+			}
+
+			rw.WriteHeader(http.StatusCreated)
+			rw.Write([]byte("{}"))
+
+		} else if req.Method == "GET" {
+			data, err := ioutil.ReadFile(dashboardConfPath)
+			if err != nil {
+				rw.WriteHeader(http.StatusInternalServerError)
+				errData := map[string]string{"error": err.Error()}
+				b, _ := json.Marshal(errData)
+				rw.Write(b)
+				return
+			}
+			rw.WriteHeader(http.StatusOK)
+			rw.Write(data)
+		} else {
+			rw.WriteHeader(http.StatusMethodNotAllowed)
+		}
 	}
 }
 
