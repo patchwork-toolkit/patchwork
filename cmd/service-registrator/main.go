@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"strings"
 
-	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/oleksandr/bonjour"
+	"github.com/oleksandr/bonjour"
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/service"
 )
 

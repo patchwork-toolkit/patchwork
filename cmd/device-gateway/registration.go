@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/oleksandr/bonjour"
+	"github.com/oleksandr/bonjour"
 	utils "github.com/patchwork-toolkit/patchwork/catalog"
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
 )

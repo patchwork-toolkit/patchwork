@@ -9,8 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/bmizerany/pat"
-	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/oleksandr/bonjour"
+	"github.com/oleksandr/bonjour"
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
 )
 
@@ -56,36 +55,27 @@ func main() {
 
 	api := catalog.NewWritableCatalogAPI(cat, config.ApiLocation, StaticLocation, config.Description)
 
-	m := pat.New()
 	// writable api
-	m.Post(config.ApiLocation+"/", http.HandlerFunc(api.Add))
-
-	m.Get(fmt.Sprintf("%s/%s/%s",
+	http.HandleFunc(config.ApiLocation+"/", api.Add)
+	http.HandleFunc(fmt.Sprintf("%s/%s/%s",
 		config.ApiLocation, catalog.PatternUuid, catalog.PatternReg),
-		http.HandlerFunc(api.Get))
-
-	m.Get(fmt.Sprintf("%s/%s/%s/%s",
+		api.Get)
+	http.HandleFunc(fmt.Sprintf("%s/%s/%s/%s",
 		config.ApiLocation, catalog.PatternUuid, catalog.PatternReg, catalog.PatternRes),
-		http.HandlerFunc(api.GetResource))
-
-	m.Get(fmt.Sprintf("%s/%s/%s/%s/%s",
+		api.GetResource)
+	mhttp.HandleFunc(fmt.Sprintf("%s/%s/%s/%s/%s",
 		config.ApiLocation, catalog.PatternFType, catalog.PatternFPath, catalog.PatternFOp, catalog.PatternFValue),
-		http.HandlerFunc(api.Filter))
-
-	m.Put(fmt.Sprintf("%s/%s/%s",
+		api.Filter)
+	http.HandleFunc(fmt.Sprintf("%s/%s/%s",
 		config.ApiLocation, catalog.PatternUuid, catalog.PatternReg),
-		http.HandlerFunc(api.Update))
-
-	m.Del(fmt.Sprintf("%s/%s/%s",
+		api.Update)
+	http.HandleFunc(fmt.Sprintf("%s/%s/%s",
 		config.ApiLocation, catalog.PatternUuid, catalog.PatternReg),
-		http.HandlerFunc(api.Delete))
-
-	m.Get(config.ApiLocation, http.HandlerFunc(api.List))
+		api.Delete)
+	http.HandleFunc(config.ApiLocation, api.List)
 
 	// static
-	m.Get("/static/", http.HandlerFunc(staticHandler))
-
-	http.Handle("/", m)
+	http.HandleFunc("/static/", staticHandler)
 
 	// Announce service using DNS-SD
 	var bonjourCh chan<- bool
