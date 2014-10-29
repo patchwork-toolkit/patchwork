@@ -4,7 +4,10 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 
 	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/codegangsta/negroni"
 	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/gorilla/mux"
@@ -48,6 +51,24 @@ func main() {
 			}(bonjourCh)
 		}
 	}
+
+	// Setup signal catcher for the server's proper shutdown
+	c := make(chan os.Signal, 1)
+	signal.Notify(c,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
+	go func() {
+		for _ = range c {
+			// sig is a ^C, handle it
+
+			//TODO: put here the last will logic
+
+			log.Println("Stopped")
+			os.Exit(0)
+		}
+	}()
 
 	// Configure the middleware
 	n := negroni.New(
