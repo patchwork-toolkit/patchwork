@@ -8,16 +8,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gorilla/mux"
 	"github.com/patchwork-toolkit/patchwork/catalog"
 )
 
 const (
-	PatternReg      = ":regid"
-	PatternHostid   = ":hostid"
-	PatternFType    = ":type"
-	PatternFPath    = ":path"
-	PatternFOp      = ":op"
-	PatternFValue   = ":value"
 	GetParamPage    = "page"
 	GetParamPerPage = "per_page"
 	FTypeService    = "service"
@@ -100,6 +95,10 @@ func (self ReadableCatalogAPI) collectionFromServices(services []Service, page, 
 	}
 }
 
+func (self ReadableCatalogAPI) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+
+}
+
 func (self ReadableCatalogAPI) List(w http.ResponseWriter, req *http.Request) {
 	req.ParseForm()
 	page, _ := strconv.Atoi(req.Form.Get(GetParamPage))
@@ -115,10 +114,11 @@ func (self ReadableCatalogAPI) List(w http.ResponseWriter, req *http.Request) {
 }
 
 func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) {
-	ftype := req.URL.Query().Get(PatternFType)
-	fpath := req.URL.Query().Get(PatternFPath)
-	fop := req.URL.Query().Get(PatternFOp)
-	fvalue := req.URL.Query().Get(PatternFValue)
+	params := mux.Vars(req)
+	ftype := params["type"]
+	fpath := params["path"]
+	fop := params["op"]
+	fvalue := params["value"]
 
 	req.ParseForm()
 	page, _ := strconv.Atoi(req.Form.Get(GetParamPage))
@@ -134,17 +134,26 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 		if data.(Service).Id != "" {
 			svc := data.(Service)
 			data = svc.ldify(self.apiLocation)
+		} else {
+			data = nil
 		}
 
 	case FTypeServices:
 		var total int
 		data, total, err = self.catalogStorage.pathFilter(fpath, fop, fvalue, page, perPage)
 		data = self.collectionFromServices(data.([]Service), page, perPage, total)
+		if data.(*Collection).Total == 0 {
+			data = nil
+		}
 	}
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Error processing the request: %s\n", err.Error())
+	}
+
+	if data == nil {
+		w.WriteHeader(http.StatusNotFound)
 	}
 
 	b, _ := json.Marshal(data)
@@ -153,7 +162,8 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 }
 
 func (self ReadableCatalogAPI) Get(w http.ResponseWriter, req *http.Request) {
-	id := fmt.Sprintf("%v/%v", req.URL.Query().Get(PatternHostid), req.URL.Query().Get(PatternReg))
+	params := mux.Vars(req)
+	id := fmt.Sprintf("%v/%v", params["hostid"], params["regid"])
 
 	r, err := self.catalogStorage.get(id)
 	if err == ErrorNotFound {
@@ -199,7 +209,8 @@ func (self WritableCatalogAPI) Add(w http.ResponseWriter, req *http.Request) {
 }
 
 func (self WritableCatalogAPI) Update(w http.ResponseWriter, req *http.Request) {
-	id := fmt.Sprintf("%v/%v", req.URL.Query().Get(PatternHostid), req.URL.Query().Get(PatternReg))
+	params := mux.Vars(req)
+	id := fmt.Sprintf("%v/%v", params["hostid"], params["regid"])
 
 	body, err := ioutil.ReadAll(req.Body)
 	req.Body.Close()
@@ -229,7 +240,8 @@ func (self WritableCatalogAPI) Update(w http.ResponseWriter, req *http.Request) 
 }
 
 func (self WritableCatalogAPI) Delete(w http.ResponseWriter, req *http.Request) {
-	id := fmt.Sprintf("%v/%v", req.URL.Query().Get(PatternHostid), req.URL.Query().Get(PatternReg))
+	params := mux.Vars(req)
+	id := fmt.Sprintf("%v/%v", params["hostid"], params["regid"])
 
 	err := self.catalogStorage.delete(id)
 	if err == ErrorNotFound {

@@ -8,17 +8,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gorilla/mux"
 	"github.com/patchwork-toolkit/patchwork/catalog"
 )
 
 const (
-	PatternReg      = ":regid"
-	PatternRes      = ":resname"
-	PatternUuid     = ":uuid"
-	PatternFType    = ":type"
-	PatternFPath    = ":path"
-	PatternFOp      = ":op"
-	PatternFValue   = ":value"
 	FTypeDevice     = "device"
 	FTypeDevices    = "devices"
 	FTypeResource   = "resource"
@@ -192,10 +186,11 @@ func (self ReadableCatalogAPI) List(w http.ResponseWriter, req *http.Request) {
 }
 
 func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) {
-	ftype := req.URL.Query().Get(PatternFType)
-	fpath := req.URL.Query().Get(PatternFPath)
-	fop := req.URL.Query().Get(PatternFOp)
-	fvalue := req.URL.Query().Get(PatternFValue)
+	params := mux.Vars(req)
+	ftype := params["type"]
+	fpath := params["path"]
+	fop := params["op"]
+	fvalue := params["value"]
 
 	req.ParseForm()
 	page, _ := strconv.Atoi(req.Form.Get(GetParamPage))
@@ -213,6 +208,8 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 		data, err = self.catalogStorage.pathFilterDevice(fpath, fop, fvalue)
 		if data.(Device).Id != "" {
 			data = self.paginatedDeviceFromDevice(data.(Device), page, perPage)
+		} else {
+			data = nil
 		}
 
 	case FTypeDevices:
@@ -224,17 +221,26 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 		if data.(Resource).Id != "" {
 			res := data.(Resource)
 			data = res.ldify(self.apiLocation)
+		} else {
+			data = nil
 		}
 
 	case FTypeResources:
 		data, total, err = self.catalogStorage.pathFilterResources(fpath, fop, fvalue, page, perPage)
 		devs := self.catalogStorage.devicesFromResources(data.([]Resource))
 		data = self.collectionFromDevices(devs, page, perPage, total)
+		if data.(*Collection).Total == 0 {
+			data = nil
+		}
 	}
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Error processing the request: %s\n", err.Error())
+	}
+
+	if data == nil {
+		w.WriteHeader(http.StatusNotFound)
 	}
 
 	b, _ := json.Marshal(data)
@@ -248,7 +254,8 @@ func (self ReadableCatalogAPI) Get(w http.ResponseWriter, req *http.Request) {
 	perPage, _ := strconv.Atoi(req.Form.Get(GetParamPerPage))
 	page, perPage = catalog.ValidatePagingParams(page, perPage, MaxPerPage)
 
-	id := fmt.Sprintf("%v/%v", req.URL.Query().Get(PatternUuid), req.URL.Query().Get(PatternReg))
+	params := mux.Vars(req)
+	id := fmt.Sprintf("%v/%v", params["uuid"], params["regid"])
 
 	d, err := self.catalogStorage.get(id)
 	if err == ErrorNotFound {
@@ -270,8 +277,9 @@ func (self ReadableCatalogAPI) Get(w http.ResponseWriter, req *http.Request) {
 }
 
 func (self ReadableCatalogAPI) GetResource(w http.ResponseWriter, req *http.Request) {
-	devid := fmt.Sprintf("%v/%v", req.URL.Query().Get(PatternUuid), req.URL.Query().Get(PatternReg))
-	resid := fmt.Sprintf("%v/%v", devid, req.URL.Query().Get(PatternRes))
+	params := mux.Vars(req)
+	devid := fmt.Sprintf("%v/%v", params["uuid"], params["regid"])
+	resid := fmt.Sprintf("%v/%v", devid, params["resname"])
 
 	// check if device devid exists
 	_, err := self.catalogStorage.get(devid)
@@ -329,7 +337,8 @@ func (self WritableCatalogAPI) Add(w http.ResponseWriter, req *http.Request) {
 }
 
 func (self WritableCatalogAPI) Update(w http.ResponseWriter, req *http.Request) {
-	id := fmt.Sprintf("%v/%v", req.URL.Query().Get(PatternUuid), req.URL.Query().Get(PatternReg))
+	params := mux.Vars(req)
+	id := fmt.Sprintf("%v/%v", params["uuid"], params["regid"])
 
 	body, err := ioutil.ReadAll(req.Body)
 	req.Body.Close()
@@ -359,7 +368,8 @@ func (self WritableCatalogAPI) Update(w http.ResponseWriter, req *http.Request) 
 }
 
 func (self WritableCatalogAPI) Delete(w http.ResponseWriter, req *http.Request) {
-	id := fmt.Sprintf("%v/%v", req.URL.Query().Get(PatternUuid), req.URL.Query().Get(PatternReg))
+	params := mux.Vars(req)
+	id := fmt.Sprintf("%v/%v", params["uuid"], params["regid"])
 
 	err := self.catalogStorage.delete(id)
 	if err == ErrorNotFound {

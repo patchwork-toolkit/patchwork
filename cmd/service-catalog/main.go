@@ -3,39 +3,19 @@ package main
 import (
 	"flag"
 	"fmt"
-
 	"log"
-	"net/http"
 	"strconv"
-	"strings"
 
+	"github.com/codegangsta/negroni"
+	"github.com/gorilla/mux"
 	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/oleksandr/bonjour"
+	utils "github.com/patchwork-toolkit/patchwork/catalog"
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/service"
 )
 
-const (
-	CatalogBackendMemory = "memory"
-	StaticLocation       = "/static"
-)
-
 var (
-	confPath  = flag.String("conf", "conf/service-catalog.json", "Service catalog configuration file path")
-	staticDir = ""
+	confPath = flag.String("conf", "conf/service-catalog.json", "Service catalog configuration file path")
 )
-
-func staticHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != "GET" {
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	// serve all /static/ctx files as ld+json
-	if strings.HasPrefix(req.URL.Path, "/static/ctx") {
-		w.Header().Set("Content-Type", "application/ld+json")
-	}
-	urlParts := strings.Split(req.URL.Path, "/")
-	http.ServeFile(w, req, staticDir+"/"+strings.Join(urlParts[2:], "/"))
-}
 
 func main() {
 	flag.Parse()
@@ -44,35 +24,34 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error reading config file %v: %v", *confPath, err)
 	}
-	staticDir = config.StaticDir
 
-	var cat catalog.CatalogStorage
-
-	switch config.Storage.Type {
-	case CatalogBackendMemory:
-		cat = catalog.NewMemoryStorage()
+	// Create catalog API object
+	var api *catalog.WritableCatalogAPI
+	if config.Storage.Type == utils.CatalogBackendMemory {
+		api = catalog.NewWritableCatalogAPI(
+			catalog.NewMemoryStorage(),
+			config.ApiLocation,
+			utils.StaticLocation,
+			config.Description,
+		)
+	}
+	if api == nil {
+		log.Fatalf("Could not create catalog API structure. Unsupported storage type: %v", config.Storage.Type)
 	}
 
-	api := catalog.NewWritableCatalogAPI(cat, config.ApiLocation, StaticLocation, config.Description)
+	// Configure routers
+	r := mux.NewRouter().StrictSlash(true)
+	r.Methods("GET").PathPrefix(utils.StaticLocation).HandlerFunc(utils.NewStaticHandler(config.StaticDir))
 
-	// writable api
-	http.HandleFunc(config.ApiLocation, api.Add)
-	http.HandleFunc(fmt.Sprintf("%s/%s/%s",
-		config.ApiLocation, catalog.PatternHostid, catalog.PatternReg),
-		api.Get)
-	http.HandleFunc(fmt.Sprintf("%s/%s/%s/%s/%s",
-		config.ApiLocation, catalog.PatternFType, catalog.PatternFPath, catalog.PatternFOp, catalog.PatternFValue),
-		api.Filter)
-	http.HandleFunc(fmt.Sprintf("%s/%s/%s",
-		config.ApiLocation, catalog.PatternHostid, catalog.PatternReg),
-		api.Update)
-	http.HandleFunc(fmt.Sprintf("%s/%s/%s",
-		config.ApiLocation, catalog.PatternHostid, catalog.PatternReg),
-		api.Delete)
-	http.HandleFunc(config.ApiLocation, api.List)
+	scr := r.PathPrefix(config.ApiLocation).Subrouter()
+	scr.Methods("GET").Path("/").HandlerFunc(api.List)
+	scr.Methods("POST").Path("/").HandlerFunc(api.Add)
+	scr.Methods("GET").Path("/{type}/{path}/{op}/{value}").HandlerFunc(api.Filter)
 
-	// static
-	http.HandleFunc("/static", staticHandler)
+	regr := scr.PathPrefix("/{hostid}/{regid}").Subrouter()
+	regr.Methods("GET").HandlerFunc(api.Get)
+	regr.Methods("PUT").HandlerFunc(api.Update)
+	regr.Methods("DELETE").HandlerFunc(api.Delete)
 
 	// Announce service using DNS-SD
 	var bonjourCh chan<- bool
@@ -93,9 +72,16 @@ func main() {
 		}
 	}
 
-	log.Printf("Starting standalone Service Catalog at %v:%v%v", config.BindAddr, config.BindPort, config.ApiLocation)
+	// Configure the middleware
+	n := negroni.New(
+		negroni.NewRecovery(),
+		negroni.NewLogger(),
+	)
+	// Mount router
+	n.UseHandler(r)
 
-	// Listen and Serve
-	endpoint := fmt.Sprintf("%v:%v", config.BindAddr, strconv.Itoa(config.BindPort))
-	log.Fatal(http.ListenAndServe(endpoint, nil))
+	// Start listener
+	endpoint := fmt.Sprintf("%s:%s", config.BindAddr, strconv.Itoa(config.BindPort))
+	log.Printf("Starting standalone Service Catalog at %v%v", endpoint, config.ApiLocation)
+	n.Run(endpoint)
 }

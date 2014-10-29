@@ -160,24 +160,26 @@ func (self *RESTfulAPI) mountResources() {
 }
 
 func (self *RESTfulAPI) mountCatalog(catalogStorage catalog.CatalogStorage) {
-	catalogAPI := catalog.NewReadableCatalogAPI(catalogStorage, CatalogLocation, StaticLocation,
-		fmt.Sprintf("Local catalog at %s", self.config.Description))
+	/*
+		catalogAPI := catalog.NewReadableCatalogAPI(catalogStorage, CatalogLocation, StaticLocation,
+			fmt.Sprintf("Local catalog at %s", self.config.Description))
 
-	self.serverMux.Handle(fmt.Sprintf("%s/%s/%s/%s/%s",
-		CatalogLocation, catalog.PatternFType, catalog.PatternFPath, catalog.PatternFOp, catalog.PatternFValue),
-		http.HandlerFunc(catalogAPI.Filter))
+		self.serverMux.Handle(fmt.Sprintf("%s/%s/%s/%s/%s",
+			CatalogLocation, catalog.PatternFType, catalog.PatternFPath, catalog.PatternFOp, catalog.PatternFValue),
+			http.HandlerFunc(catalogAPI.Filter))
 
-	self.serverMux.Handle(fmt.Sprintf("%s/%s/%s/%s",
-		CatalogLocation, catalog.PatternUuid, catalog.PatternReg, catalog.PatternRes),
-		http.HandlerFunc(catalogAPI.GetResource))
+		self.serverMux.Handle(fmt.Sprintf("%s/%s/%s/%s",
+			CatalogLocation, catalog.PatternUuid, catalog.PatternReg, catalog.PatternRes),
+			http.HandlerFunc(catalogAPI.GetResource))
 
-	self.serverMux.Handle(fmt.Sprintf("%s/%s/%s",
-		CatalogLocation, catalog.PatternUuid, catalog.PatternReg),
-		http.HandlerFunc(catalogAPI.Get))
+		self.serverMux.Handle(fmt.Sprintf("%s/%s/%s",
+			CatalogLocation, catalog.PatternUuid, catalog.PatternReg),
+			http.HandlerFunc(catalogAPI.Get))
 
-	self.serverMux.Handle(CatalogLocation, http.HandlerFunc(catalogAPI.List))
+		self.serverMux.Handle(CatalogLocation, http.HandlerFunc(catalogAPI.List))
 
-	log.Printf("Mounted local catalog at %v", CatalogLocation)
+		log.Printf("Mounted local catalog at %v", CatalogLocation)
+	*/
 }
 
 func (self *RESTfulAPI) createResourceGetHandler(resourceId string) http.HandlerFunc {
