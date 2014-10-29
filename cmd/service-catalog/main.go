@@ -41,14 +41,15 @@ func main() {
 
 	// Configure routers
 	r := mux.NewRouter().StrictSlash(true)
+	scr := r.PathPrefix(config.ApiLocation).Subrouter()
+	regr := scr.PathPrefix("/{hostid}/{regid}").Subrouter()
+
 	r.Methods("GET").PathPrefix(utils.StaticLocation).HandlerFunc(utils.NewStaticHandler(config.StaticDir))
 
-	scr := r.PathPrefix(config.ApiLocation).Subrouter()
+	scr.Methods("GET").Path("/{type}/{path}/{op}/{value}").HandlerFunc(api.Filter)
 	scr.Methods("GET").Path("/").HandlerFunc(api.List)
 	scr.Methods("POST").Path("/").HandlerFunc(api.Add)
-	scr.Methods("GET").Path("/{type}/{path}/{op}/{value}").HandlerFunc(api.Filter)
 
-	regr := scr.PathPrefix("/{hostid}/{regid}").Subrouter()
 	regr.Methods("GET").HandlerFunc(api.Get)
 	regr.Methods("PUT").HandlerFunc(api.Update)
 	regr.Methods("DELETE").HandlerFunc(api.Delete)

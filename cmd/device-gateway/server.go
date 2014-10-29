@@ -6,12 +6,12 @@ import (
 	"io/ioutil"
 	"log"
 	"mime"
-	"net"
 	"net/http"
 	"path/filepath"
 	"strings"
-	"time"
 
+	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/codegangsta/negroni"
+	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/gorilla/mux"
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
 )
 
@@ -25,7 +25,7 @@ type errorResponse struct {
 type RESTfulAPI struct {
 	config     *Config
 	restConfig *RestProtocol
-	serverMux  *http.ServeMux
+	router     *mux.Router
 	dataCh     chan<- DataRequest
 }
 
@@ -36,7 +36,7 @@ func newRESTfulAPI(conf *Config, dataCh chan<- DataRequest) *RESTfulAPI {
 	api := &RESTfulAPI{
 		config:     conf,
 		restConfig: &restConfig,
-		serverMux:  http.NewServeMux(),
+		router:     mux.NewRouter().StrictSlash(true),
 		dataCh:     dataCh,
 	}
 	return api
@@ -46,30 +46,23 @@ func newRESTfulAPI(conf *Config, dataCh chan<- DataRequest) *RESTfulAPI {
 func (self *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
 	self.mountCatalog(catalogStorage)
 	self.mountResources()
-	self.serverMux.Handle("/dashboard", self.dashboardHandler(*confPath))
-	self.serverMux.Handle(self.restConfig.Location, self.indexHandler())
-	self.serverMux.Handle(StaticLocation, self.staticHandler())
 
-	s := &http.Server{
-		Handler:        self.serverMux,
-		ReadTimeout:    30 * time.Second,
-		WriteTimeout:   30 * time.Second,
-		MaxHeaderBytes: 1 << 20,
-	}
+	self.router.Methods("GET").Path("/dashboard").HandlerFunc(self.dashboardHandler(*confPath))
+	self.router.Methods("GET").Path(self.restConfig.Location).HandlerFunc(self.indexHandler())
+	self.router.Methods("GET").Path(StaticLocation).HandlerFunc(self.staticHandler())
 
+	// Configure the middleware
+	n := negroni.New(
+		negroni.NewRecovery(),
+		negroni.NewLogger(),
+	)
+	// Mount router
+	n.UseHandler(self.router)
+
+	// Start the listener
 	addr := fmt.Sprintf("%v:%v", self.config.Http.BindAddr, self.config.Http.BindPort)
-	ln, err := net.Listen("tcp", addr)
-	if err != nil {
-		log.Println(err.Error())
-		return
-	}
-
 	log.Printf("Starting server at http://%v%v", addr, self.restConfig.Location)
-
-	err = s.Serve(ln)
-	if err != nil {
-		log.Println(err.Error())
-	}
+	n.Run(addr)
 }
 
 // Create a HTTP handler to serve and update dashboard configuration
@@ -149,9 +142,9 @@ func (self *RESTfulAPI) mountResources() {
 				for _, method := range protocol.Methods {
 					switch method {
 					case "GET":
-						self.serverMux.Handle(uri, self.createResourceGetHandler(rid))
+						self.router.Methods("GET").Path(uri).HandlerFunc(self.createResourceGetHandler(rid))
 					case "PUT":
-						self.serverMux.Handle(uri, self.createResourcePutHandler(rid))
+						self.router.Methods("PUT").Path(uri).HandlerFunc(self.createResourcePutHandler(rid))
 					}
 				}
 			}
@@ -160,26 +153,23 @@ func (self *RESTfulAPI) mountResources() {
 }
 
 func (self *RESTfulAPI) mountCatalog(catalogStorage catalog.CatalogStorage) {
-	/*
-		catalogAPI := catalog.NewReadableCatalogAPI(catalogStorage, CatalogLocation, StaticLocation,
-			fmt.Sprintf("Local catalog at %s", self.config.Description))
+	catalogAPI := catalog.NewReadableCatalogAPI(
+		catalogStorage,
+		CatalogLocation,
+		StaticLocation,
+		fmt.Sprintf("Local catalog at %s", self.config.Description),
+	)
 
-		self.serverMux.Handle(fmt.Sprintf("%s/%s/%s/%s/%s",
-			CatalogLocation, catalog.PatternFType, catalog.PatternFPath, catalog.PatternFOp, catalog.PatternFValue),
-			http.HandlerFunc(catalogAPI.Filter))
+	dcr := self.router.PathPrefix(CatalogLocation).Subrouter()
+	regr := dcr.PathPrefix("/{uuid}/{regid}").Subrouter()
 
-		self.serverMux.Handle(fmt.Sprintf("%s/%s/%s/%s",
-			CatalogLocation, catalog.PatternUuid, catalog.PatternReg, catalog.PatternRes),
-			http.HandlerFunc(catalogAPI.GetResource))
+	regr.Methods("GET").Path("/{resname}").HandlerFunc(catalogAPI.GetResource)
+	regr.Methods("GET").HandlerFunc(catalogAPI.Get)
 
-		self.serverMux.Handle(fmt.Sprintf("%s/%s/%s",
-			CatalogLocation, catalog.PatternUuid, catalog.PatternReg),
-			http.HandlerFunc(catalogAPI.Get))
+	dcr.Methods("GET").Path("/{type}/{path}/{op}/{value}").HandlerFunc(catalogAPI.Filter)
+	dcr.Methods("GET").HandlerFunc(catalogAPI.List)
 
-		self.serverMux.Handle(CatalogLocation, http.HandlerFunc(catalogAPI.List))
-
-		log.Printf("Mounted local catalog at %v", CatalogLocation)
-	*/
+	log.Printf("Mounted local catalog at %v", CatalogLocation)
 }
 
 func (self *RESTfulAPI) createResourceGetHandler(resourceId string) http.HandlerFunc {

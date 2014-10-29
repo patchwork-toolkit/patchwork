@@ -41,18 +41,19 @@ func main() {
 
 	// Configure routers
 	r := mux.NewRouter().StrictSlash(true)
+	dcr := r.PathPrefix(config.ApiLocation).Subrouter()
+	regr := dcr.PathPrefix("/{uuid}/{regid}").Subrouter()
+
 	r.Methods("GET").PathPrefix(utils.StaticLocation).HandlerFunc(utils.NewStaticHandler(config.StaticDir))
 
-	dcr := r.PathPrefix(config.ApiLocation).Subrouter()
-	dcr.Methods("GET").Path("/").HandlerFunc(api.List)
-	dcr.Methods("POST").Path("/").HandlerFunc(api.Add)
-	dcr.Methods("GET").Path("/{type}/{path}/{op}/{value}").HandlerFunc(api.Filter)
-
-	regr := dcr.PathPrefix("/{uuid}/{regid}").Subrouter()
 	regr.Methods("GET").Path("/{resname}").HandlerFunc(api.GetResource)
 	regr.Methods("GET").HandlerFunc(api.Get)
 	regr.Methods("PUT").HandlerFunc(api.Update)
 	regr.Methods("DELETE").HandlerFunc(api.Delete)
+
+	dcr.Methods("GET").Path("/{type}/{path}/{op}/{value}").HandlerFunc(api.Filter)
+	dcr.Methods("GET").HandlerFunc(api.List)
+	dcr.Methods("POST").Path("/").HandlerFunc(api.Add)
 
 	// Announce service using DNS-SD
 	var bonjourCh chan<- bool
