@@ -160,14 +160,16 @@ func (self *RESTfulAPI) mountCatalog(catalogStorage catalog.CatalogStorage) {
 		fmt.Sprintf("Local catalog at %s", self.config.Description),
 	)
 
+	// NB: For now the order of routes IS IMPORTANT!!!
+
 	dcr := self.router.PathPrefix(CatalogLocation).Subrouter()
-	regr := dcr.PathPrefix("/{uuid}/{regid}").Subrouter()
-
-	regr.Methods("GET").Path("/{resname}").HandlerFunc(catalogAPI.GetResource)
-	regr.Methods("GET").HandlerFunc(catalogAPI.Get)
-
 	dcr.Methods("GET").Path("/{type}/{path}/{op}/{value}").HandlerFunc(catalogAPI.Filter)
+
+	regr := dcr.PathPrefix("/{uuid}/{regid}").Subrouter()
+	regr.Methods("GET").Path("/{resname}").HandlerFunc(catalogAPI.GetResource)
+
 	dcr.Methods("GET").HandlerFunc(catalogAPI.List)
+	regr.Methods("GET").HandlerFunc(catalogAPI.Get)
 
 	log.Printf("Mounted local catalog at %v", CatalogLocation)
 }

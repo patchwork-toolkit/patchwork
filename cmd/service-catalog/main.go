@@ -25,34 +25,10 @@ func main() {
 		log.Fatalf("Error reading config file %v: %v", *confPath, err)
 	}
 
-	// Create catalog API object
-	var api *catalog.WritableCatalogAPI
-	if config.Storage.Type == utils.CatalogBackendMemory {
-		api = catalog.NewWritableCatalogAPI(
-			catalog.NewMemoryStorage(),
-			config.ApiLocation,
-			utils.StaticLocation,
-			config.Description,
-		)
+	r, err := setupRouter(config)
+	if err != nil {
+		log.Fatal(err.Error())
 	}
-	if api == nil {
-		log.Fatalf("Could not create catalog API structure. Unsupported storage type: %v", config.Storage.Type)
-	}
-
-	// Configure routers
-	r := mux.NewRouter().StrictSlash(true)
-	scr := r.PathPrefix(config.ApiLocation).Subrouter()
-	regr := scr.PathPrefix("/{hostid}/{regid}").Subrouter()
-
-	r.Methods("GET").PathPrefix(utils.StaticLocation).HandlerFunc(utils.NewStaticHandler(config.StaticDir))
-
-	scr.Methods("GET").Path("/{type}/{path}/{op}/{value}").HandlerFunc(api.Filter)
-	scr.Methods("GET").Path("/").HandlerFunc(api.List)
-	scr.Methods("POST").Path("/").HandlerFunc(api.Add)
-
-	regr.Methods("GET").HandlerFunc(api.Get)
-	regr.Methods("PUT").HandlerFunc(api.Update)
-	regr.Methods("DELETE").HandlerFunc(api.Delete)
 
 	// Announce service using DNS-SD
 	var bonjourCh chan<- bool
@@ -85,4 +61,41 @@ func main() {
 	endpoint := fmt.Sprintf("%s:%s", config.BindAddr, strconv.Itoa(config.BindPort))
 	log.Printf("Starting standalone Service Catalog at %v%v", endpoint, config.ApiLocation)
 	n.Run(endpoint)
+}
+
+func setupRouter(config *Config) (*mux.Router, error) {
+	// Create catalog API object
+	var api *catalog.WritableCatalogAPI
+	if config.Storage.Type == utils.CatalogBackendMemory {
+		api = catalog.NewWritableCatalogAPI(
+			catalog.NewMemoryStorage(),
+			config.ApiLocation,
+			utils.StaticLocation,
+			config.Description,
+		)
+	}
+	if api == nil {
+		return nil, fmt.Errorf("Could not create catalog API structure. Unsupported storage type: %v", config.Storage.Type)
+	}
+
+	// Configure routers
+	r := mux.NewRouter().StrictSlash(true)
+
+	// NB: For now the order of routes IS IMPORTANT!!!
+
+	scr := r.PathPrefix(config.ApiLocation).Subrouter()
+
+	r.Methods("GET").PathPrefix(utils.StaticLocation).HandlerFunc(utils.NewStaticHandler(config.StaticDir))
+
+	scr.Methods("GET").Path("/{type}/{path}/{op}/{value}").HandlerFunc(api.Filter)
+
+	scr.Methods("GET").Path("/").HandlerFunc(api.List)
+	scr.Methods("POST").Path("/").HandlerFunc(api.Add)
+
+	regr := scr.PathPrefix("/{hostid}/{regid}").Subrouter()
+	regr.Methods("GET").HandlerFunc(api.Get)
+	regr.Methods("PUT").HandlerFunc(api.Update)
+	regr.Methods("DELETE").HandlerFunc(api.Delete)
+
+	return r, nil
 }

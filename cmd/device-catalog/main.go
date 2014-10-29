@@ -25,35 +25,10 @@ func main() {
 		log.Fatalf("Error reading config file %v:%v", *confPath, err)
 	}
 
-	// Create catalog API object
-	var api *catalog.WritableCatalogAPI
-	if config.Storage.Type == utils.CatalogBackendMemory {
-		api = catalog.NewWritableCatalogAPI(
-			catalog.NewMemoryStorage(),
-			config.ApiLocation,
-			utils.StaticLocation,
-			config.Description,
-		)
+	r, err := setupRouter(config)
+	if err != nil {
+		log.Fatal(err.Error())
 	}
-	if api == nil {
-		log.Fatalf("Could not create catalog API structure. Unsupported storage type: %v", config.Storage.Type)
-	}
-
-	// Configure routers
-	r := mux.NewRouter().StrictSlash(true)
-	dcr := r.PathPrefix(config.ApiLocation).Subrouter()
-	regr := dcr.PathPrefix("/{uuid}/{regid}").Subrouter()
-
-	r.Methods("GET").PathPrefix(utils.StaticLocation).HandlerFunc(utils.NewStaticHandler(config.StaticDir))
-
-	regr.Methods("GET").Path("/{resname}").HandlerFunc(api.GetResource)
-	regr.Methods("GET").HandlerFunc(api.Get)
-	regr.Methods("PUT").HandlerFunc(api.Update)
-	regr.Methods("DELETE").HandlerFunc(api.Delete)
-
-	dcr.Methods("GET").Path("/{type}/{path}/{op}/{value}").HandlerFunc(api.Filter)
-	dcr.Methods("GET").HandlerFunc(api.List)
-	dcr.Methods("POST").Path("/").HandlerFunc(api.Add)
 
 	// Announce service using DNS-SD
 	var bonjourCh chan<- bool
@@ -92,4 +67,42 @@ func main() {
 	endpoint := fmt.Sprintf("%s:%s", config.BindAddr, strconv.Itoa(config.BindPort))
 	log.Printf("Starting standalone Device Catalog at %v%v", endpoint, config.ApiLocation)
 	n.Run(endpoint)
+}
+
+func setupRouter(config *Config) (*mux.Router, error) {
+	// Create catalog API object
+	var api *catalog.WritableCatalogAPI
+	if config.Storage.Type == utils.CatalogBackendMemory {
+		api = catalog.NewWritableCatalogAPI(
+			catalog.NewMemoryStorage(),
+			config.ApiLocation,
+			utils.StaticLocation,
+			config.Description,
+		)
+	}
+	if api == nil {
+		return nil, fmt.Errorf("Could not create catalog API structure. Unsupported storage type: %v", config.Storage.Type)
+	}
+
+	// Configure routers
+	r := mux.NewRouter().StrictSlash(true)
+
+	// NB: For now the order of routes IS IMPORTANT!!!
+
+	r.Methods("GET").PathPrefix(utils.StaticLocation).HandlerFunc(utils.NewStaticHandler(config.StaticDir))
+
+	dcr := r.PathPrefix(config.ApiLocation).Subrouter()
+
+	dcr.Methods("GET").Path("/{type}/{path}/{op}/{value}").HandlerFunc(api.Filter)
+
+	regr := dcr.PathPrefix("/{uuid}/{regid}").Subrouter()
+	regr.Methods("GET").Path("/{resname}").HandlerFunc(api.GetResource)
+
+	dcr.Methods("GET").HandlerFunc(api.List)
+	dcr.Methods("POST").Path("/").HandlerFunc(api.Add)
+	regr.Methods("GET").HandlerFunc(api.Get)
+	regr.Methods("PUT").HandlerFunc(api.Update)
+	regr.Methods("DELETE").HandlerFunc(api.Delete)
+
+	return r, nil
 }
