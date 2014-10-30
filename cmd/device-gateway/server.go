@@ -48,7 +48,7 @@ func (self *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
 	self.mountResources()
 
 	self.router.Methods("GET").PathPrefix(StaticLocation).HandlerFunc(self.staticHandler())
-	self.router.Methods("GET").Path("/dashboard").HandlerFunc(self.dashboardHandler(*confPath))
+	self.router.Methods("GET", "POST").Path("/dashboard").HandlerFunc(self.dashboardHandler(*confPath))
 	self.router.Methods("GET").Path(self.restConfig.Location).HandlerFunc(self.indexHandler())
 
 	// Configure the middleware
