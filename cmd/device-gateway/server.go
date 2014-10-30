@@ -47,9 +47,9 @@ func (self *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
 	self.mountCatalog(catalogStorage)
 	self.mountResources()
 
+	self.router.Methods("GET").PathPrefix(StaticLocation).HandlerFunc(self.staticHandler())
 	self.router.Methods("GET").Path("/dashboard").HandlerFunc(self.dashboardHandler(*confPath))
 	self.router.Methods("GET").Path(self.restConfig.Location).HandlerFunc(self.indexHandler())
-	self.router.Methods("GET").Path(StaticLocation).HandlerFunc(self.staticHandler())
 
 	// Configure the middleware
 	n := negroni.New(
@@ -160,16 +160,10 @@ func (self *RESTfulAPI) mountCatalog(catalogStorage catalog.CatalogStorage) {
 		fmt.Sprintf("Local catalog at %s", self.config.Description),
 	)
 
-	// NB: For now the order of routes IS IMPORTANT!!!
-
-	dcr := self.router.PathPrefix(CatalogLocation).Subrouter()
-	dcr.Methods("GET").Path("/{type}/{path}/{op}/{value}").HandlerFunc(catalogAPI.Filter)
-
-	regr := dcr.PathPrefix("/{uuid}/{regid}").Subrouter()
-	regr.Methods("GET").Path("/{resname}").HandlerFunc(catalogAPI.GetResource)
-
-	dcr.Methods("GET").HandlerFunc(catalogAPI.List)
-	regr.Methods("GET").HandlerFunc(catalogAPI.Get)
+	self.router.Methods("GET").Path(CatalogLocation + "/{type}/{path}/{op}/{value}").HandlerFunc(catalogAPI.Filter).Name("filter")
+	self.router.Methods("GET").Path(CatalogLocation + "/{dgwid}/{regid}/{resname}").HandlerFunc(catalogAPI.GetResource).Name("details")
+	self.router.Methods("GET").Path(CatalogLocation + "/{dgwid}/{regid}").HandlerFunc(catalogAPI.Get).Name("get")
+	self.router.Methods("GET").Path(CatalogLocation).HandlerFunc(catalogAPI.List).Name("list")
 
 	log.Printf("Mounted local catalog at %v", CatalogLocation)
 }

@@ -255,7 +255,7 @@ func (self ReadableCatalogAPI) Get(w http.ResponseWriter, req *http.Request) {
 	page, perPage = catalog.ValidatePagingParams(page, perPage, MaxPerPage)
 
 	params := mux.Vars(req)
-	id := fmt.Sprintf("%v/%v", params["uuid"], params["regid"])
+	id := fmt.Sprintf("%v/%v", params["dgwid"], params["regid"])
 
 	d, err := self.catalogStorage.get(id)
 	if err == ErrorNotFound {
@@ -278,7 +278,7 @@ func (self ReadableCatalogAPI) Get(w http.ResponseWriter, req *http.Request) {
 
 func (self ReadableCatalogAPI) GetResource(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
-	devid := fmt.Sprintf("%v/%v", params["uuid"], params["regid"])
+	devid := fmt.Sprintf("%v/%v", params["dgwid"], params["regid"])
 	resid := fmt.Sprintf("%v/%v", devid, params["resname"])
 
 	// check if device devid exists
@@ -338,7 +338,7 @@ func (self WritableCatalogAPI) Add(w http.ResponseWriter, req *http.Request) {
 
 func (self WritableCatalogAPI) Update(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
-	id := fmt.Sprintf("%v/%v", params["uuid"], params["regid"])
+	id := fmt.Sprintf("%v/%v", params["dgwid"], params["regid"])
 
 	body, err := ioutil.ReadAll(req.Body)
 	req.Body.Close()
@@ -369,7 +369,7 @@ func (self WritableCatalogAPI) Update(w http.ResponseWriter, req *http.Request) 
 
 func (self WritableCatalogAPI) Delete(w http.ResponseWriter, req *http.Request) {
 	params := mux.Vars(req)
-	id := fmt.Sprintf("%v/%v", params["uuid"], params["regid"])
+	id := fmt.Sprintf("%v/%v", params["dgwid"], params["regid"])
 
 	err := self.catalogStorage.delete(id)
 	if err == ErrorNotFound {

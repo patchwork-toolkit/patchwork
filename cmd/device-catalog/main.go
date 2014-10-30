@@ -107,23 +107,16 @@ func setupRouter(config *Config) (*mux.Router, error) {
 
 	// Configure routers
 	r := mux.NewRouter().StrictSlash(true)
+	r.Methods("GET").PathPrefix(utils.StaticLocation).HandlerFunc(utils.NewStaticHandler(config.StaticDir)).Name("static")
+	r.Methods("GET").Path(config.ApiLocation).HandlerFunc(api.List).Name("list")
+	r.Methods("POST").Path(config.ApiLocation + "/").HandlerFunc(api.Add).Name("add")
+	r.Methods("GET").Path(config.ApiLocation + "/{type}/{path}/{op}/{value}").HandlerFunc(api.Filter).Name("filter")
 
-	// NB: For now the order of routes IS IMPORTANT!!!
-
-	r.Methods("GET").PathPrefix(utils.StaticLocation).HandlerFunc(utils.NewStaticHandler(config.StaticDir))
-
-	dcr := r.PathPrefix(config.ApiLocation).Subrouter()
-
-	dcr.Methods("GET").Path("/{type}/{path}/{op}/{value}").HandlerFunc(api.Filter)
-
-	regr := dcr.PathPrefix("/{uuid}/{regid}").Subrouter()
-	regr.Methods("GET").Path("/{resname}").HandlerFunc(api.GetResource)
-
-	dcr.Methods("GET").HandlerFunc(api.List)
-	dcr.Methods("POST").Path("/").HandlerFunc(api.Add)
-	regr.Methods("GET").HandlerFunc(api.Get)
-	regr.Methods("PUT").HandlerFunc(api.Update)
-	regr.Methods("DELETE").HandlerFunc(api.Delete)
+	url := config.ApiLocation + "/{dgwid}/{regid}"
+	r.Methods("GET").Path(url).HandlerFunc(api.Get).Name("get")
+	r.Methods("PUT").Path(url).HandlerFunc(api.Update).Name("update")
+	r.Methods("DELETE").Path(url).HandlerFunc(api.Delete).Name("delete")
+	r.Methods("GET").Path(url + "/{resname}").HandlerFunc(api.GetResource).Name("details")
 
 	return r, nil
 }
