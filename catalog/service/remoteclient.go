@@ -124,3 +124,13 @@ func (self *RemoteCatalogClient) GetMany(page, perPage int) ([]Service, int, err
 
 	return svcs, len(svcs), nil
 }
+
+// TODO
+func (self *RemoteCatalogClient) FindService(path string, op string, value string) (*Service, error) {
+	return nil, nil
+}
+
+// TODO
+func (self *RemoteCatalogClient) FindServices(path, op, value string, page, perPage int) ([]Service, int, error) {
+	return nil, 0, nil
+}
