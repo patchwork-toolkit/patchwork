@@ -14,7 +14,9 @@ func TestNewStorage(t *testing.T) {
 func TestAddService(t *testing.T) {
 	r := &Service{}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
-	r.Id = uuid + "/" + "ServiceName"
+	r.Name = "ServiceName"
+	r.Id = uuid + "/" + r.Name
+	r.Ttl = 30
 
 	storage := NewMemoryStorage()
 	err := storage.add(*r)
@@ -26,7 +28,9 @@ func TestAddService(t *testing.T) {
 func TestUpdateService(t *testing.T) {
 	r := &Service{}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
-	r.Id = uuid + "/" + "ServiceName"
+	r.Name = "ServiceName"
+	r.Id = uuid + "/" + r.Name
+	r.Ttl = 30
 
 	storage := NewMemoryStorage()
 	err := storage.add(*r)
@@ -40,6 +44,14 @@ func TestUpdateService(t *testing.T) {
 		t.Errorf("Unexpected error on update: %v", err.Error())
 	}
 
+	rg, err := storage.get(r.Id)
+	if err != nil {
+		t.Error("Unexpected error on get: %v", err.Error())
+	}
+
+	if rg.Name != r.Name {
+		t.Fail()
+	}
 }
 
 func TestGetService(t *testing.T) {
@@ -47,7 +59,9 @@ func TestGetService(t *testing.T) {
 		Name: "TestName",
 	}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
-	r.Id = uuid + "/" + "ServiceName"
+	r.Name = "ServiceName"
+	r.Id = uuid + "/" + r.Name
+	r.Ttl = 30
 
 	storage := NewMemoryStorage()
 	err := storage.add(*r)
@@ -60,7 +74,7 @@ func TestGetService(t *testing.T) {
 		t.Error("Unexpected error on get: %v", err.Error())
 	}
 
-	if rg.Name != "TestName" {
+	if rg.Id != r.Id || rg.Name != r.Name || rg.Ttl != r.Ttl {
 		t.Fail()
 	}
 }
@@ -68,7 +82,9 @@ func TestGetService(t *testing.T) {
 func TestDeleteService(t *testing.T) {
 	r := &Service{}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
-	r.Id = uuid + "/" + "ServiceName"
+	r.Name = "ServiceName"
+	r.Id = uuid + "/" + r.Name
+	r.Ttl = 30
 	storage := NewMemoryStorage()
 	err := storage.add(*r)
 	if err != nil {
@@ -91,7 +107,9 @@ func TestGetManyServices(t *testing.T) {
 	storage := NewMemoryStorage()
 	// Add 10 entries
 	for i := 0; i < 11; i++ {
-		r.Id = "TestID" + "/" + string(i)
+		r.Name = string(i)
+		r.Id = "TestID" + "/" + r.Name
+		r.Ttl = 30
 		err := storage.add(*r)
 
 		if err != nil {

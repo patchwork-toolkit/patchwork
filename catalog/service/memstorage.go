@@ -1,7 +1,7 @@
 package service
 
 import (
-	"errors"
+	"fmt"
 	"log"
 	"sort"
 	"strings"
@@ -20,8 +20,8 @@ type MemoryStorage struct {
 
 // CRUD
 func (self *MemoryStorage) add(s Service) error {
-	if s.Id == "" || len(strings.Split(s.Id, "/")) != 2 {
-		return errors.New("Service ID has to be <uuid>/<name>")
+	if !s.validate() {
+		return fmt.Errorf("Invalid Service registration")
 	}
 
 	s.Created = time.Now()

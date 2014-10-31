@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -65,12 +67,13 @@ func main() {
 		}
 	}
 
-	registrator := catalog.NewRegistrator(*endpoint)
-	config, err := registrator.LoadConfigFromFile(*confPath)
+	service, err := LoadConfigFromFile(*confPath)
 	if err != nil {
 		log.Fatal("Unable to read service configuration from file: ", err)
 	}
-	err = registrator.RegisterService(config, true)
+
+	client := catalog.NewRemoteCatalogClient(*endpoint)
+	err = catalog.RegisterService(client, service, true)
 	if err != nil {
 		log.Fatal("Unable to register service in the catalog: ", err)
 	}
@@ -85,11 +88,33 @@ func main() {
 		}
 	}
 
-	err = registrator.DeregisterService(config)
-	if err != nil {
-		log.Println("Unable to deregister service in the catalog (will be removed after TTL expire): ", err)
+	err = client.Delete(service.Id)
+	if err == catalog.ErrorNotFound {
+		log.Printf("Service %v not found in the remote catalog. TTL expired?", service.Id)
+	} else if err != nil {
+		log.Printf("Error accessing the catalog: %v\n", err)
 	}
 
 	log.Println("Stopped")
 	os.Exit(0)
+}
+
+// Loads service registration from a config file
+func LoadConfigFromFile(confPath string) (*catalog.Service, error) {
+	if !strings.HasSuffix(confPath, ".json") {
+		return nil, fmt.Errorf("Config should be a .json file")
+	}
+	f, err := ioutil.ReadFile(confPath)
+	if err != nil {
+		return nil, err
+	}
+
+	config := &catalog.ServiceConfig{}
+	err = json.Unmarshal(f, config)
+	if err != nil {
+		return nil, fmt.Errorf("Error parsing config")
+	}
+
+	service, err := config.GetService()
+	return service, err
 }
