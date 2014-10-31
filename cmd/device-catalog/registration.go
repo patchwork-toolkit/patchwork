@@ -41,7 +41,7 @@ const (
 	`
 )
 
-func registrationFromConfig(config *Config) *sc.ServiceConfig {
+func registrationFromConfig(config *Config) (*sc.Service, error) {
 	serviceConfig := &sc.ServiceConfig{}
 
 	json.Unmarshal([]byte(registrationTemplate), serviceConfig)
@@ -57,35 +57,38 @@ func registrationFromConfig(config *Config) *sc.ServiceConfig {
 	// port from the bind port, address from the public address
 	serviceConfig.Protocols[0].Endpoint["url"] = fmt.Sprintf("http://%v:%v%v", config.PublicAddr, config.BindPort, config.ApiLocation)
 
-	return serviceConfig
+	return serviceConfig.GetService()
 }
 
 // Registers service in all configured catalogs
 func registerService(config *Config) {
-	serviceConfig := registrationFromConfig(config)
+	service, err := registrationFromConfig(config)
+	if err != nil {
+		log.Printf("Unable to parse Service registration: %v\n", err.Error())
+		return
+	}
 
 	discoveryStarted := false
 	for _, cat := range config.ServiceCatalog {
+		// Set TTL
+		service.Ttl = cat.Ttl
+
 		// Ignore endpoint: discover and register
 		if cat.Discover == true {
 			if !discoveryStarted {
 				// makes no sense to start > 1 discovery of the same type
-				serviceConfig.Ttl = cat.Ttl
-				go utils.DiscoverAndExecute(sc.DnssdServiceType, publishRegistrationHandler(serviceConfig))
+				go utils.DiscoverAndExecute(sc.DnssdServiceType, publishRegistrationHandler(service))
 				discoveryStarted = true
 			}
 
 		} else {
 			// Register in the catalog specified by endpoint
-			registrator := sc.NewRegistrator(cat.Endpoint)
+			client := sc.NewRemoteCatalogClient(cat.Endpoint)
 			log.Printf("Registering in the Service Catalog at %s\n", cat.Endpoint)
 
-			// Set TTL
-			serviceConfig.Ttl = cat.Ttl
-
-			err := registrator.RegisterService(serviceConfig, true)
+			err := sc.RegisterService(client, service, true)
 			if err != nil {
-				log.Printf("Error registering in Service Catalog %v: %v\n", cat.Endpoint, err)
+				log.Printf("Error registering in the Service Catalog %v: %v\n", cat.Endpoint, err)
 			}
 		}
 	}
@@ -93,7 +96,7 @@ func registerService(config *Config) {
 
 // Create a DiscoverHandler function for registering service in the remote
 // catalog discovered via DNS-SD
-func publishRegistrationHandler(config *sc.ServiceConfig) utils.DiscoverHandler {
+func publishRegistrationHandler(serviceReg *sc.Service) utils.DiscoverHandler {
 	// registration handling function
 	return func(service *bonjour.ServiceEntry) {
 		// create remote client & publish registrations
@@ -109,8 +112,8 @@ func publishRegistrationHandler(config *sc.ServiceConfig) utils.DiscoverHandler 
 		}
 		endpoint := fmt.Sprintf("http://%s:%v%s", service.HostName, service.Port, uri)
 		log.Println("Will use this endpoint for remote SC:", endpoint)
-		registrator := sc.NewRegistrator(endpoint)
-		err := registrator.RegisterService(config, true)
+		client := sc.NewRemoteCatalogClient(endpoint)
+		err := sc.RegisterService(client, serviceReg, true)
 		if err != nil {
 			log.Printf("Error registering in Service Catalog %v: %v\n", endpoint, err)
 		}

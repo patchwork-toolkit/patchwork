@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 )
@@ -13,20 +12,17 @@ type RemoteCatalogClient struct {
 	serverEndpoint *url.URL
 }
 
-func serviceFromResponse(res *http.Response, apiLocation string) (Service, error) {
-	var s Service
-	body, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
-	if err != nil {
-		return s, err
-	}
+func serviceFromResponse(res *http.Response, apiLocation string) (*Service, error) {
+	decoder := json.NewDecoder(res.Body)
+	defer res.Body.Close()
 
-	err = json.Unmarshal(body, &s)
+	var s *Service
+	err := decoder.Decode(&s)
 	if err != nil {
-		return s, err
+		return nil, err
 	}
-	s = s.unLdify(apiLocation)
-	return s, nil
+	svc := s.unLdify(apiLocation)
+	return &svc, nil
 }
 
 func NewRemoteCatalogClient(serverEndpoint string) *RemoteCatalogClient {
@@ -41,21 +37,21 @@ func NewRemoteCatalogClient(serverEndpoint string) *RemoteCatalogClient {
 	}
 }
 
-func (self *RemoteCatalogClient) Get(id string) (Service, error) {
+func (self *RemoteCatalogClient) Get(id string) (*Service, error) {
 	res, err := http.Get(fmt.Sprintf("%v/%v", self.serverEndpoint, id))
 	if err != nil {
-		return Service{}, err
+		return nil, err
 	}
 
 	if res.StatusCode == http.StatusNotFound {
-		return Service{}, ErrorNotFound
+		return nil, ErrorNotFound
 	} else if res.StatusCode != http.StatusOK {
-		return Service{}, fmt.Errorf("%v", res.StatusCode)
+		return nil, fmt.Errorf("%v", res.StatusCode)
 	}
 	return serviceFromResponse(res, self.serverEndpoint.Path)
 }
 
-func (self *RemoteCatalogClient) Add(s Service) error {
+func (self *RemoteCatalogClient) Add(s *Service) error {
 	b, _ := json.Marshal(s)
 	_, err := http.Post(self.serverEndpoint.String()+"/", "application/ld+json", bytes.NewReader(b))
 	if err != nil {
@@ -64,7 +60,7 @@ func (self *RemoteCatalogClient) Add(s Service) error {
 	return nil
 }
 
-func (self *RemoteCatalogClient) Update(id string, s Service) error {
+func (self *RemoteCatalogClient) Update(id string, s *Service) error {
 	b, _ := json.Marshal(s)
 	req, err := http.NewRequest("PUT", fmt.Sprintf("%v/%v", self.serverEndpoint, id), bytes.NewReader(b))
 	if err != nil {
@@ -112,14 +108,11 @@ func (self *RemoteCatalogClient) GetMany(page, perPage int) ([]Service, int, err
 		return nil, 0, err
 	}
 
-	body, err := ioutil.ReadAll(res.Body)
-	res.Body.Close()
-	if err != nil {
-		return nil, 0, err
-	}
+	decoder := json.NewDecoder(res.Body)
+	defer res.Body.Close()
 
 	var coll Collection
-	err = json.Unmarshal(body, &coll)
+	err = decoder.Decode(&coll)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -130,4 +123,14 @@ func (self *RemoteCatalogClient) GetMany(page, perPage int) ([]Service, int, err
 	}
 
 	return svcs, len(svcs), nil
+}
+
+// TODO
+func (self *RemoteCatalogClient) FindService(path string, op string, value string) (*Service, error) {
+	return nil, nil
+}
+
+// TODO
+func (self *RemoteCatalogClient) FindServices(path, op, value string, page, perPage int) ([]Service, int, error) {
+	return nil, 0, nil
 }
