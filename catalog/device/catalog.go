@@ -2,6 +2,7 @@ package device
 
 import (
 	"errors"
+	"strings"
 	"time"
 )
 
@@ -52,6 +53,20 @@ func (self *Device) copy() Device {
 	return dc
 }
 
+// Validates the Device configuration
+func (d *Device) validate() bool {
+	if d.Id == "" || len(strings.Split(d.Id, "/")) != 2 || d.Name == "" || d.Ttl == 0 {
+		return false
+	}
+	// validate all resources
+	for _, r := range d.Resources {
+		if !r.validate() {
+			return false
+		}
+	}
+	return true
+}
+
 // Deep copy of the resource
 func (self *Resource) copy() Resource {
 	var rc Resource
@@ -60,6 +75,14 @@ func (self *Resource) copy() Resource {
 	copy(proto, self.Protocols)
 	rc.Protocols = proto
 	return rc
+}
+
+// Validates the Resource configuration
+func (r *Resource) validate() bool {
+	if r.Id == "" || len(strings.Split(r.Id, "/")) != 3 || r.Name == "" {
+		return false
+	}
+	return true
 }
 
 // Interfaces
@@ -85,13 +108,4 @@ type CatalogStorage interface {
 	pathFilterDevices(string, string, string, int, int) ([]Device, int, error)
 	pathFilterResource(string, string, string) (Resource, error)
 	pathFilterResources(string, string, string, int, int) ([]Resource, int, error)
-}
-
-// Catalog client
-type CatalogClient interface {
-	Get(string) (Device, error)
-	Add(Device) error
-	Update(string, Device) error
-	Delete(string) error
-	GetMany(int, int) ([]Device, int, error)
 }

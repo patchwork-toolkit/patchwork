@@ -18,17 +18,11 @@ func RegisterService(client CatalogClient, s *Service, keepalive bool) error {
 			log.Printf("Error accessing the catalog: %v\n", err)
 			return err
 		}
-		_, err = client.Get(s.Id)
-		if err != nil {
-			log.Printf("Could not register service %v\n", s.Id)
-			return err
-		}
 		log.Printf("Added Service registration %v\n", s.Id)
 	} else if err != nil {
 		log.Printf("Error accessing the catalog: %v\n", err)
 		return err
 	} else {
-
 		err = client.Update(s.Id, s)
 		if err != nil {
 			log.Printf("Error accessing the catalog: %v\n", err)

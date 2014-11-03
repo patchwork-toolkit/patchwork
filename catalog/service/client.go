@@ -29,7 +29,7 @@ type CatalogClient interface {
 	// Returns a slice of Services given:
 	// page - page in the collection
 	// perPage - number of entries per page
-	GetMany(int, int) ([]Service, int, error)
+	GetServices(int, int) ([]Service, int, error)
 
 	// Returns a single Service given: path, operation, value
 	FindService(string, string, string) (*Service, error)

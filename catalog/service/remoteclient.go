@@ -100,7 +100,7 @@ func (self *RemoteCatalogClient) Delete(id string) error {
 	return nil
 }
 
-func (self *RemoteCatalogClient) GetMany(page, perPage int) ([]Service, int, error) {
+func (self *RemoteCatalogClient) GetServices(page, perPage int) ([]Service, int, error) {
 	res, err := http.Get(
 		fmt.Sprintf("%s?%s=%s&%s=%s",
 			self.serverEndpoint, GetParamPage, page, GetParamPerPage, perPage))
@@ -126,7 +126,7 @@ func (self *RemoteCatalogClient) GetMany(page, perPage int) ([]Service, int, err
 }
 
 // TODO
-func (self *RemoteCatalogClient) FindService(path string, op string, value string) (*Service, error) {
+func (self *RemoteCatalogClient) FindService(path, op, value string) (*Service, error) {
 	return nil, nil
 }
 

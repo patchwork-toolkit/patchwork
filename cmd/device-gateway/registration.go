@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"time"
 
 	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/oleksandr/bonjour"
 	utils "github.com/patchwork-toolkit/patchwork/catalog"
@@ -52,7 +51,7 @@ func registerDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 					mqtt, ok := config.Protocols[ProtocolTypeMQTT].(MqttProtocol)
 					if ok {
 						p.Endpoint["broker"] = mqtt.ServerUri
-						p.Endpoint["topic"] = fmt.Sprintf("%s/%v", mqtt.Prefix, r.Id)
+						p.Endpoint["topic"] = fmt.Sprintf("%s/%v", mqtt.Prefix, res.Id)
 					}
 				}
 				res.Protocols = append(res.Protocols, *p)
@@ -102,7 +101,7 @@ func publishRegistrationHandler(devices []catalog.Device) utils.DiscoverHandler 
 			}
 		}
 		endpoint := fmt.Sprintf("http://%s:%v%s", service.HostName, service.Port, uri)
-		log.Println("Will use this endpoint for remote DC:", endpoint)
+		log.Println("Will use this endpoint for remote catalog:", endpoint)
 		remoteClient := catalog.NewRemoteCatalogClient(endpoint)
 		publishRegistrations(remoteClient, devices, true)
 	}
@@ -135,80 +134,20 @@ func unregisterDevices(config *Config, catalogStorage catalog.CatalogStorage) {
 
 }
 
-// Publish given registration using provided catalog client and setup their periodic update if required
+// Publish given registrations using provided catalog client and setup their periodic update if required
 func publishRegistrations(catalogClient catalog.CatalogClient, registrations []catalog.Device, keepalive bool) {
-	for _, lr := range registrations {
-		_, err := catalogClient.Get(lr.Id)
-		// If not in the target catalog - Add
-		if err == catalog.ErrorNotFound {
-			err = catalogClient.Add(lr)
-			if err != nil {
-				log.Printf("Error accessing the catalog: %v\n", err)
-				return
-			}
-			log.Printf("Added registration %v", lr.Id)
-		} else if err != nil {
-			log.Printf("Error accessing the catalog: %v\n", err)
-			return
-		} else {
-			// otherwise - Update
-			err = catalogClient.Update(lr.Id, lr)
-			if err != nil {
-				log.Printf("Error accessing the catalog: %v\n", err)
-				return
-			}
-			log.Printf("Updated registration %v\n", lr.Id)
-		}
-	}
-
-	// If told to keep alive
-	if keepalive {
-		log.Printf("Will keep alive %v registrations\n", len(registrations))
-		for _, reg := range registrations {
-			var delay time.Duration
-
-			if reg.Ttl-minKeepaliveSec <= minKeepaliveSec {
-				// WARNING: this may lead to high churn in the remote catalog (choose ttl wisely)
-				delay = time.Duration(minKeepaliveSec) * time.Second
-			} else {
-				// Update every ttl - (minTtl *2)
-				delay = time.Duration(reg.Ttl-minKeepaliveSec*2) * time.Second
-			}
-			go keepRegistrationAlive(delay, catalogClient, reg)
-		}
+	for _, r := range registrations {
+		catalog.RegisterDevice(catalogClient, &r, keepalive)
 	}
 }
 
-// Remove each given registration from the provided catalog
+// Remove given registrations from the provided catalog
 func removeRegistrations(catalogClient catalog.CatalogClient, registrations []catalog.Device) {
 	for _, r := range registrations {
 		log.Printf("Removing registration %v\n", r.Id)
-		catalogClient.Delete(r.Id)
-	}
-}
-
-// Recursively & periodically updates given registration
-func keepRegistrationAlive(delay time.Duration, client catalog.CatalogClient, reg catalog.Device) {
-	time.Sleep(delay)
-
-	err := client.Update(reg.Id, reg)
-
-	// Device not found in the remote catalog
-	if err == catalog.ErrorNotFound {
-		log.Printf("Device %v not found in the remote catalog. TTL expired?", reg.Id)
-		err = client.Add(reg)
+		err := catalogClient.Delete(r.Id)
 		if err != nil {
-			log.Printf("Error accessing the catalog: %v\n", err)
-			go keepRegistrationAlive(delay, client, reg)
-			return
+			log.Println("Error accessing the catalog: %v\n", err.Error())
 		}
-		log.Printf("Added registration %v\n", reg.Id)
-	} else if err != nil {
-		log.Printf("Error accessing the catalog: %v\n", err)
-		go keepRegistrationAlive(delay, client, reg)
-		return
-	} else {
-		log.Printf("Updated registration %v\n", reg.Id)
 	}
-	go keepRegistrationAlive(delay, client, reg)
 }
