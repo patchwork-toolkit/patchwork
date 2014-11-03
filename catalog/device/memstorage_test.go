@@ -22,7 +22,9 @@ func TestNewLocalCatalogClient(t *testing.T) {
 func TestAddDevice(t *testing.T) {
 	r := &Device{}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
-	r.Id = uuid + "/" + "DeviceName"
+	r.Name = "DeviceName"
+	r.Id = uuid + "/" + r.Name
+	r.Ttl = 30
 
 	storage := NewMemoryStorage()
 	err := storage.add(*r)
@@ -34,7 +36,9 @@ func TestAddDevice(t *testing.T) {
 func TestUpdateDevice(t *testing.T) {
 	r := &Device{}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
-	r.Id = uuid + "/" + "DeviceName"
+	r.Name = "DeviceName"
+	r.Id = uuid + "/" + r.Name
+	r.Ttl = 30
 	storage := NewMemoryStorage()
 
 	err := storage.add(*r)
@@ -54,7 +58,9 @@ func TestGetDevice(t *testing.T) {
 		Name: "TestName",
 	}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
-	r.Id = uuid + "/" + "DeviceName"
+	r.Name = "DeviceName"
+	r.Id = uuid + "/" + r.Name
+	r.Ttl = 30
 	storage := NewMemoryStorage()
 
 	err := storage.add(*r)
@@ -67,7 +73,7 @@ func TestGetDevice(t *testing.T) {
 		t.Error("Unexpected error on get: %v", err.Error())
 	}
 
-	if rg.Name != "TestName" {
+	if rg.Name != r.Name {
 		t.Fail()
 	}
 }
@@ -75,7 +81,9 @@ func TestGetDevice(t *testing.T) {
 func TestDeleteDevice(t *testing.T) {
 	r := &Device{}
 	uuid := "E9203BE9-D705-42A8-8B12-F28E7EA2FC99"
-	r.Id = uuid + "/" + "DeviceName"
+	r.Name = "DeviceName"
+	r.Id = uuid + "/" + r.Name
+	r.Ttl = 30
 	storage := NewMemoryStorage()
 
 	err := storage.add(*r)
@@ -106,6 +114,7 @@ func TestGetManyDevices(t *testing.T) {
 			Name: "TestDevice",
 		}
 		d.Id = "TestID" + "/" + string(i)
+		d.Ttl = 30
 		r.Id = d.Id + "/" + r.Name
 		d.Resources = append(d.Resources, r)
 
