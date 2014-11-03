@@ -54,7 +54,11 @@ func main() {
 		}
 	}
 	// Signal shutdown to the registration routine
-	regCh <- true
+	select {
+	// Notify if the routine hasn't returned already
+	case regCh <- true:
+	default:
+	}
 	wg.Wait()
 
 	log.Println("Stopped")

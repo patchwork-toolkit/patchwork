@@ -90,7 +90,11 @@ func main() {
 			//TODO: put here the last will logic
 			// Unregister in the service catalog(s)
 			for _, sigCh := range regChannels {
-				sigCh <- true
+				// Notify if the routine hasn't returned already
+				select {
+				case sigCh <- true:
+				default:
+				}
 			}
 			wg.Wait()
 

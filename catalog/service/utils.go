@@ -49,7 +49,7 @@ func RegisterServiceWithKeepalive(endpoint string, discover bool, s *Service, si
 	if discover {
 		endpoint, err = utils.DiscoverCatalogEndpoint(DnssdServiceType)
 		if err != nil {
-			<-sigCh
+			log.Println("Error discovering endpoint: %v", err.Error())
 			return
 		}
 	}
@@ -60,7 +60,7 @@ func RegisterServiceWithKeepalive(endpoint string, discover bool, s *Service, si
 
 	// Will not keepalive registration with a negative TTL
 	if s.Ttl <= 0 {
-		<-sigCh
+		log.Println("Registration has ttl <= 0. Will not start keepalive process")
 		return
 	}
 
@@ -78,7 +78,7 @@ func RegisterServiceWithKeepalive(endpoint string, discover bool, s *Service, si
 			if discover {
 				endpoint, err = utils.DiscoverCatalogEndpoint(DnssdServiceType)
 				if err != nil {
-					<-sigCh
+					log.Println("Error discovering endpoint: ", err.Error())
 					return
 				}
 			}
