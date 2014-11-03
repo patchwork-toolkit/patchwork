@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	utils "github.com/patchwork-toolkit/patchwork/catalog"
@@ -42,7 +43,8 @@ func RegisterService(client CatalogClient, s *Service) error {
 // endpoint: catalog endpoint. If empty - will be discovered using DNS-SD
 // s: service registration
 // sigCh: channel for shutdown signalisation from upstream
-func RegisterServiceWithKeepalive(endpoint string, discover bool, s *Service, sigCh <-chan bool) {
+func RegisterServiceWithKeepalive(endpoint string, discover bool, s *Service, sigCh <-chan bool, wg *sync.WaitGroup) {
+	defer wg.Done()
 	var err error
 	if discover {
 		endpoint, err = utils.DiscoverCatalogEndpoint(DnssdServiceType)

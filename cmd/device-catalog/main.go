@@ -7,8 +7,8 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"syscall"
-	"time"
 
 	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/codegangsta/negroni"
 	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/gorilla/mux"
@@ -54,8 +54,9 @@ func main() {
 		}
 	}
 
+	// Register in the configured Service Catalogs
 	regChannels := make([]chan bool, 0, len(config.ServiceCatalog))
-	// Register in Service Catalogs if configured
+	var wg sync.WaitGroup
 	if len(config.ServiceCatalog) > 0 {
 		log.Println("Will now register in the configured Service Catalogs")
 		service, err := registrationFromConfig(config)
@@ -68,8 +69,9 @@ func main() {
 			// Set TTL
 			service.Ttl = cat.Ttl
 			sigCh := make(chan bool)
-			go sc.RegisterServiceWithKeepalive(cat.Endpoint, cat.Discover, service, sigCh)
+			go sc.RegisterServiceWithKeepalive(cat.Endpoint, cat.Discover, service, sigCh, &wg)
 			regChannels = append(regChannels, sigCh)
+			wg.Add(1)
 		}
 
 	}
@@ -90,7 +92,7 @@ func main() {
 			for _, sigCh := range regChannels {
 				sigCh <- true
 			}
-			time.Sleep(3 * time.Second)
+			wg.Wait()
 
 			log.Println("Stopped")
 			os.Exit(0)

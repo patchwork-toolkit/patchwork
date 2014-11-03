@@ -3,7 +3,10 @@ package catalog
 import (
 	"fmt"
 	"log"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/oleksandr/bonjour"
@@ -50,12 +53,12 @@ func DiscoverAndExecute(serviceType string, handler DiscoverHandler) {
 
 // Discovers a catalog endpoint given the serviceType
 func DiscoverCatalogEndpoint(serviceType string) (endpoint string, err error) {
-	// sysSig := make(chan os.Signal, 1)
-	// signal.Notify(sysSig,
-	// 	syscall.SIGHUP,
-	// 	syscall.SIGINT,
-	// 	syscall.SIGTERM,
-	// 	syscall.SIGQUIT)
+	sysSig := make(chan os.Signal, 1)
+	signal.Notify(sysSig,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
 
 	for {
 		// create resolver
@@ -82,9 +85,9 @@ func DiscoverCatalogEndpoint(serviceType string) (endpoint string, err error) {
 			log.Printf("Discovered service:%v\n", foundService.ServiceInstanceName())
 		case <-time.After(time.Duration(discoveryTimeoutSec) * time.Second):
 			log.Println("Timeout looking for a service")
-			// case <-sysSig:
-			// 	log.Println("System interrupt signal received. Aborting the discovery")
-			// 	return endpoint, fmt.Errorf("Aborted by system interrupt")
+		case <-sysSig:
+			log.Println("System interrupt signal received. Aborting the discovery")
+			return endpoint, fmt.Errorf("Aborted by system interrupt")
 		}
 
 		// check if something found

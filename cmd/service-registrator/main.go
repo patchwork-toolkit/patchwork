@@ -9,7 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
-	"time"
+	"sync"
 
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/service"
 )
@@ -40,8 +40,9 @@ func main() {
 	}
 
 	// Launch the registration routine
+	var wg sync.WaitGroup
 	regCh := make(chan bool)
-	go catalog.RegisterServiceWithKeepalive(*endpoint, *discover, service, regCh)
+	go catalog.RegisterServiceWithKeepalive(*endpoint, *discover, service, regCh, &wg)
 
 	// Ctrl+C handling
 	handler := make(chan os.Signal, 1)
@@ -54,7 +55,7 @@ func main() {
 	}
 	// Signal shutdown to the registration routine
 	regCh <- true
-	time.Sleep(3 * time.Second)
+	wg.Wait()
 
 	log.Println("Stopped")
 	os.Exit(0)
