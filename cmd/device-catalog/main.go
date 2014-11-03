@@ -8,12 +8,14 @@ import (
 	"os/signal"
 	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/codegangsta/negroni"
 	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/gorilla/mux"
 	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/oleksandr/bonjour"
 	utils "github.com/patchwork-toolkit/patchwork/catalog"
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
+	sc "github.com/patchwork-toolkit/patchwork/catalog/service"
 )
 
 var (
@@ -52,10 +54,24 @@ func main() {
 		}
 	}
 
+	regChannels := make([]chan bool, 0, len(config.ServiceCatalog))
 	// Register in Service Catalogs if configured
 	if len(config.ServiceCatalog) > 0 {
 		log.Println("Will now register in the configured Service Catalogs")
-		registerService(config)
+		service, err := registrationFromConfig(config)
+		if err != nil {
+			log.Printf("Unable to parse Service registration: %v\n", err.Error())
+			return
+		}
+
+		for _, cat := range config.ServiceCatalog {
+			// Set TTL
+			service.Ttl = cat.Ttl
+			sigCh := make(chan bool)
+			go sc.RegisterServiceWithKeepalive(cat.Endpoint, cat.Discover, service, sigCh)
+			regChannels = append(regChannels, sigCh)
+		}
+
 	}
 
 	// Setup signal catcher for the server's proper shutdown
@@ -70,6 +86,11 @@ func main() {
 			// sig is a ^C, handle it
 
 			//TODO: put here the last will logic
+			// Unregister in the service catalog(s)
+			for _, sigCh := range regChannels {
+				sigCh <- true
+			}
+			time.Sleep(3 * time.Second)
 
 			log.Println("Stopped")
 			os.Exit(0)

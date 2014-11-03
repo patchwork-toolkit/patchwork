@@ -53,6 +53,11 @@ func (self *Config) Validate() error {
 	if strings.HasSuffix(self.StaticDir, "/") {
 		err = fmt.Errorf("staticDir must not have a training slash")
 	}
+	for _, cat := range self.ServiceCatalog {
+		if cat.Ttl <= 0 {
+			err = fmt.Errorf("All ServiceCatalog entries should have TTL >= 0")
+		}
+	}
 	return err
 }
 

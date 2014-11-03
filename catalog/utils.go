@@ -1,9 +1,16 @@
 package catalog
 
 import (
+	"fmt"
 	"log"
+	"strings"
+	"time"
 
 	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/oleksandr/bonjour"
+)
+
+const (
+	discoveryTimeoutSec = 30
 )
 
 // DNS-SD discovery result handler function type
@@ -39,6 +46,74 @@ func DiscoverAndExecute(serviceType string, handler DiscoverHandler) {
 	if err := resolver.Browse(serviceType, "", services); err != nil {
 		log.Printf("Fail to browse services using type %s", serviceType)
 	}
+}
+
+// Discovers a catalog endpoint given the serviceType
+func DiscoverCatalogEndpoint(serviceType string) (endpoint string, err error) {
+	// sysSig := make(chan os.Signal, 1)
+	// signal.Notify(sysSig,
+	// 	syscall.SIGHUP,
+	// 	syscall.SIGINT,
+	// 	syscall.SIGTERM,
+	// 	syscall.SIGQUIT)
+
+	for {
+		// create resolver
+		resolver, err := bonjour.NewResolver(nil)
+		if err != nil {
+			log.Println("Failed to initialize DNS-SD resolver:", err.Error())
+			break
+		}
+		// init the channel for results
+		results := make(chan *bonjour.ServiceEntry)
+
+		// send query and listen for answers
+		log.Println("Browsing...")
+		err = resolver.Browse(serviceType, "", results)
+		if err != nil {
+			log.Println("Unable to browse DNS-SD services: ", err)
+			break
+		}
+
+		// if not found - block with timeout
+		var foundService *bonjour.ServiceEntry
+		select {
+		case foundService = <-results:
+			log.Printf("Discovered service:%v\n", foundService.ServiceInstanceName())
+		case <-time.After(time.Duration(discoveryTimeoutSec) * time.Second):
+			log.Println("Timeout looking for a service")
+			// case <-sysSig:
+			// 	log.Println("System interrupt signal received. Aborting the discovery")
+			// 	return endpoint, fmt.Errorf("Aborted by system interrupt")
+		}
+
+		// check if something found
+		if foundService == nil {
+			log.Println("Could not discover a servcie withing the timeout. Starting from scratch...")
+			// stop resolver
+			resolver.Exit <- true
+			// start the new iteration
+			continue
+		}
+
+		// stop the resolver and close the channel
+		resolver.Exit <- true
+		close(results)
+
+		uri := ""
+		for _, s := range foundService.Text {
+			if strings.HasPrefix(s, "uri=") {
+				tmp := strings.Split(s, "=")
+				if len(tmp) == 2 {
+					uri = tmp[1]
+					break
+				}
+			}
+		}
+		endpoint = fmt.Sprintf("http://%s:%v%s", foundService.HostName, foundService.Port, uri)
+		break
+	}
+	return endpoint, err
 }
 
 // Returns a 'slice' of the given slice based on the requested 'page'
