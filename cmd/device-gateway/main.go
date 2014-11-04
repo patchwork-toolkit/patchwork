@@ -31,15 +31,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Publish device data to MQTT (if require)
-	mqttPublisher := newMQTTPublisher(config)
-
-	// Start the agent programs and establish internal communication
+	// Agents' process manager
 	agentManager := newAgentManager(config)
+
+	// Configure MQTT publishing if required
+	mqttPublisher := newMQTTPublisher(config)
 	if mqttPublisher != nil {
-		go mqttPublisher.start()
 		agentManager.setPublishingChannel(mqttPublisher.dataInbox())
+		go mqttPublisher.start()
 	}
+
+	// Start agents
 	go agentManager.start()
 
 	// Expose device's resources via REST (include statics and local catalog)
@@ -59,7 +61,7 @@ func main() {
 	if config.DnssdEnabled {
 		restConfig, _ := config.Protocols[ProtocolTypeREST].(RestProtocol)
 		bonjourCh, err = bonjour.Register(config.Description,
-			DnssdServiceType,
+			DNSSDServiceTypeDGW,
 			"",
 			config.Http.BindPort,
 			[]string{fmt.Sprintf("uri=%s", restConfig.Location)},
@@ -67,7 +69,7 @@ func main() {
 		if err != nil {
 			log.Printf("Failed to register DNS-SD service: %s", err.Error())
 		} else {
-			log.Println("Registered service via DNS-SD using type", DnssdServiceType)
+			log.Println("Registered service via DNS-SD using type", DNSSDServiceTypeDGW)
 		}
 	}
 

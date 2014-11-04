@@ -126,12 +126,9 @@ func (self *Config) Validate() error {
 		mqttConf := self.Protocols[ProtocolTypeMQTT].(MqttProtocol)
 
 		// Check that ServerUri is a valid URL
-		serverUri, err := url.Parse(mqttConf.ServerUri)
+		err := mqttConf.Validate()
 		if err != nil {
-			return fmt.Errorf("MQTT ServerUri must be a URI in the format scheme://host:port")
-		}
-		if serverUri.Scheme != "tcp" && serverUri.Scheme != "ssl" {
-			return fmt.Errorf("MQTT ServerUri scheme must be either 'tcp' or 'ssl'")
+			return err
 		}
 
 		// Check that the CA file exists
@@ -147,7 +144,7 @@ func (self *Config) Validate() error {
 				return fmt.Errorf("MQTT client certificate file %s does not exist", mqttConf.CertFile)
 			}
 
-			if _, err = os.Stat(mqttConf.KeyFile); os.IsNotExist(err) {
+			if _, err := os.Stat(mqttConf.KeyFile); os.IsNotExist(err) {
 				return fmt.Errorf("MQTT client key file %s does not exist", mqttConf.KeyFile)
 			}
 		}
@@ -192,6 +189,7 @@ type RestProtocol struct {
 }
 
 type MqttProtocol struct {
+	Discover  bool   `json:"discover"`
 	ServerUri string `json:"serverUri"`
 	Prefix    string `json:"prefix"`
 	Username  string `json:"username"`
@@ -199,6 +197,19 @@ type MqttProtocol struct {
 	CaFile    string `json:"caFile"`
 	CertFile  string `json:"certFile"`
 	KeyFile   string `json:"keyFile"`
+}
+
+func (p *MqttProtocol) Validate() error {
+	if !p.Discover {
+		serverUri, err := url.Parse(p.ServerUri)
+		if err != nil {
+			return fmt.Errorf("MQTT ServerUri must be a URI in the format scheme://host:port")
+		}
+		if serverUri.Scheme != "tcp" && serverUri.Scheme != "ssl" {
+			return fmt.Errorf("MQTT ServerUri scheme must be either 'tcp' or 'ssl'")
+		}
+	}
+	return nil
 }
 
 type ProtocolType string

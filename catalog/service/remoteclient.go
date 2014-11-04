@@ -146,7 +146,7 @@ func (self *RemoteCatalogClient) FindService(path, op, value string) (*Service, 
 
 func (self *RemoteCatalogClient) FindServices(path, op, value string, page, perPage int) ([]Service, int, error) {
 	res, err := http.Get(
-		fmt.Sprintf("%v/%v/%v/%v/%v%?%v=%v&%v=%v",
+		fmt.Sprintf("%v/%v/%v/%v/%v?%v=%v&%v=%v",
 			self.serverEndpoint, FTypeServices, path, op, value, GetParamPage, page, GetParamPerPage, perPage))
 	if err != nil {
 		return nil, 0, err

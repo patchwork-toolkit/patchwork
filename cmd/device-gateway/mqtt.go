@@ -10,6 +10,8 @@ import (
 	"time"
 
 	MQTT "github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
+	"github.com/patchwork-toolkit/patchwork/catalog"
+	"github.com/patchwork-toolkit/patchwork/catalog/service"
 )
 
 type MQTTPublisher struct {
@@ -58,9 +60,6 @@ func newMQTTPublisher(conf *Config) *MQTTPublisher {
 		dataCh:   make(chan AgentResponse),
 	}
 
-	// Configure the MQTT connection
-	publisher.configureMqttConnection()
-
 	return publisher
 }
 
@@ -70,6 +69,18 @@ func (self *MQTTPublisher) dataInbox() chan<- AgentResponse {
 
 func (self *MQTTPublisher) start() {
 	log.Println("MQTTPublisher.start()")
+
+	if self.config.Discover && self.config.ServerUri == "" {
+		err := self.discoverBrokerEndpoint()
+		if err != nil {
+			log.Println("MQTTPublisher: failed to start publisher:", err.Error())
+			return
+		}
+	}
+
+	// configure the mqtt client
+	self.configureMqttConnection()
+
 	// start the connection routine
 	log.Printf("MQTTPublisher: Will connect to the broker %v\n", self.config.ServerUri)
 	go self.connect(0)
@@ -93,6 +104,44 @@ func (self *MQTTPublisher) start() {
 	}
 }
 
+func (p *MQTTPublisher) discoverBrokerEndpoint() error {
+	endpoint, err := catalog.DiscoverCatalogEndpoint(service.DnssdServiceType)
+	if err != nil {
+		return err
+	}
+
+	rcc := service.NewRemoteCatalogClient(endpoint)
+	res, _, err := rcc.FindServices("meta.serviceType", "equals", DNSSDServiceTypeMQTT, 1, 50)
+	if err != nil {
+		return err
+	}
+	supportsPub := false
+	for _, s := range res {
+		for _, proto := range s.Protocols {
+			for _, m := range proto.Methods {
+				if m == "PUB" {
+					supportsPub = true
+					break
+				}
+			}
+			if !supportsPub {
+				continue
+			}
+			log.Println(proto.Endpoint["url"])
+			if ProtocolType(proto.Type) == ProtocolTypeMQTT {
+				p.config.ServerUri = proto.Endpoint["url"].(string)
+				break
+			}
+		}
+	}
+
+	err = p.config.Validate()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (self *MQTTPublisher) stop() {
 	log.Println("MQTTPublisher.stop()")
 	if self.client != nil && self.client.IsConnected() {
@@ -101,21 +150,26 @@ func (self *MQTTPublisher) stop() {
 }
 
 func (self *MQTTPublisher) connect(backOff int) {
-	log.Printf("MQTTPublisher: connecting to the broker %v, backOff: %v sec\n", self.config.ServerUri, backOff)
-	// sleep for backOff seconds
-	time.Sleep(time.Duration(backOff) * time.Second)
-	_, err := self.client.Start()
-
-	if err != nil {
+	if self.client == nil {
+		log.Printf("MQTTPublisher: client is not configured")
+		return
+	}
+	for {
+		log.Printf("MQTTPublisher: connecting to the broker %v, backOff: %v sec\n", self.config.ServerUri, backOff)
+		time.Sleep(time.Duration(backOff) * time.Second)
+		if self.client.IsConnected() {
+			break
+		}
+		_, err := self.client.Start()
+		if err == nil {
+			break
+		}
 		log.Printf("MQTTPublisher: failed to connect: %v\n", err.Error())
-		// intial backOff 10 sec, every further retry backOff*2 unless <= 10 min
 		if backOff == 0 {
 			backOff = 10
 		} else if backOff <= 600 {
 			backOff *= 2
 		}
-		go self.connect(backOff)
-		return
 	}
 
 	log.Printf("MQTTPublisher: connected to the broker %v", self.config.ServerUri)

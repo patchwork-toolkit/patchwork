@@ -17,41 +17,6 @@ const (
 	minKeepaliveSec     = 5
 )
 
-// DNS-SD discovery result handler function type
-type DiscoverHandler func(service *bonjour.ServiceEntry)
-
-// Runs DNS-SD discover of a service of a given type, calls DiscoverHandler
-// on the first result, stops discovery afterwards
-func DiscoverAndExecute(serviceType string, handler DiscoverHandler) {
-	log.Println("Discovering catalog via DNS-SD...")
-
-	services := make(chan *bonjour.ServiceEntry)
-	resolver, err := bonjour.NewResolver(nil)
-	if err != nil {
-		log.Println("Failed to create DNS-SD resolver:", err.Error())
-		return
-	}
-
-	go func(services chan *bonjour.ServiceEntry, exitCh chan<- bool) {
-		for service := range services {
-			log.Println("Catalog discovered:", service.ServiceInstanceName())
-
-			// stop resolver
-			exitCh <- true
-
-			// executing the handler
-			handler(service)
-
-			// exit the loop
-			break
-		}
-	}(services, resolver.Exit)
-
-	if err := resolver.Browse(serviceType, "", services); err != nil {
-		log.Printf("Fail to browse services using type %s", serviceType)
-	}
-}
-
 // Discovers a catalog endpoint given the serviceType
 func DiscoverCatalogEndpoint(serviceType string) (endpoint string, err error) {
 	sysSig := make(chan os.Signal, 1)
@@ -83,17 +48,17 @@ func DiscoverCatalogEndpoint(serviceType string) (endpoint string, err error) {
 		var foundService *bonjour.ServiceEntry
 		select {
 		case foundService = <-results:
-			log.Printf("Discovered service:%v\n", foundService.ServiceInstanceName())
+			log.Printf("[DiscoverCatalogEndpoint] Discovered service: %v\n", foundService.ServiceInstanceName())
 		case <-time.After(time.Duration(discoveryTimeoutSec) * time.Second):
-			log.Println("Timeout looking for a service")
+			log.Println("[DiscoverCatalogEndpoint] Timeout looking for a service")
 		case <-sysSig:
-			log.Println("System interrupt signal received. Aborting the discovery")
+			log.Println("[DiscoverCatalogEndpoint] System interrupt signal received. Aborting the discovery")
 			return endpoint, fmt.Errorf("Aborted by system interrupt")
 		}
 
 		// check if something found
 		if foundService == nil {
-			log.Println("Could not discover a servcie withing the timeout. Starting from scratch...")
+			log.Printf("[DiscoverCatalogEndpoint] Could not discover a service %v withing the timeout. Starting from scratch...", serviceType)
 			// stop resolver
 			resolver.Exit <- true
 			// start the new iteration

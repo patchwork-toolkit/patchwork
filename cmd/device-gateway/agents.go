@@ -127,8 +127,10 @@ func (self *AgentManager) start() {
 							// Send data with a timeout (to avoid blocking data receival)
 							select {
 							case self.publishOutbox <- resp:
-							case <-time.Tick(time.Duration(2) * time.Second):
-								log.Printf("AgentManager: WARNING timeout while publishing data to publishOutbox")
+							//case <-time.Tick(time.Duration(2) * time.Second):
+							//	log.Printf("AgentManager: WARNING timeout while publishing data to publishOutbox")
+							default:
+								log.Printf("AgentManager: WARNING publishOutbox is blocked. Skipping current value...")
 							}
 						}
 					}
