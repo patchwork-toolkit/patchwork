@@ -69,7 +69,7 @@ func main() {
 			// Set TTL
 			service.Ttl = cat.Ttl
 			sigCh := make(chan bool)
-			go sc.RegisterServiceWithKeepalive(cat.Endpoint, cat.Discover, service, sigCh, &wg)
+			go sc.RegisterServiceWithKeepalive(cat.Endpoint, cat.Discover, *service, sigCh, &wg)
 			regChannels = append(regChannels, sigCh)
 			wg.Add(1)
 		}

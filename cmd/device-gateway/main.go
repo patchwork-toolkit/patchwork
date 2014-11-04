@@ -47,8 +47,12 @@ func main() {
 	catalogStorage := catalog.NewMemoryStorage()
 	go restServer.start(catalogStorage)
 
-	// Register devices in the local catalog and run periodic remote catalog updates (if required)
-	go registerDevices(config, catalogStorage)
+	// Parse device configurations
+	devices := configureDevices(config)
+	// register in local catalog
+	registerInLocalCatalog(devices, config, catalogStorage)
+	// register in remote catalogs
+	regChannels, wg := registerInRemoteCatalog(devices, config)
 
 	// Register this gateway as a service via DNS-SD
 	var bonjourCh chan<- bool
@@ -88,10 +92,15 @@ func main() {
 		mqttPublisher.stop()
 	}
 
-	// Remove registratoins from configured remote catalogs
-	if len(config.Catalog) > 0 {
-		unregisterDevices(config, catalogStorage)
+	// Unregister in the remote catalog(s)
+	for _, sigCh := range regChannels {
+		// Notify if the routine hasn't returned already
+		select {
+		case sigCh <- true:
+		default:
+		}
 	}
+	wg.Wait()
 
 	log.Println("Stopped")
 	os.Exit(0)

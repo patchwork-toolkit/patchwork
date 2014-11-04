@@ -14,6 +14,7 @@ import (
 
 const (
 	discoveryTimeoutSec = 30
+	minKeepaliveSec     = 5
 )
 
 // DNS-SD discovery result handler function type
@@ -160,4 +161,15 @@ func ValidatePagingParams(page, perPage, maxPerPage int) (int, int) {
 	}
 
 	return page, perPage
+}
+
+// Calculates the keepalive ticker interval given a registration TTL
+func KeepAliveDuration(ttl int) time.Duration {
+	var d time.Duration
+	if ttl-minKeepaliveSec <= minKeepaliveSec {
+		d = time.Duration(minKeepaliveSec) * time.Second
+	} else {
+		d = time.Duration(ttl-minKeepaliveSec*2) * time.Second
+	}
+	return d
 }

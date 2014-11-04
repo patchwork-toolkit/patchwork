@@ -42,7 +42,7 @@ func main() {
 	// Launch the registration routine
 	var wg sync.WaitGroup
 	regCh := make(chan bool)
-	go catalog.RegisterServiceWithKeepalive(*endpoint, *discover, service, regCh, &wg)
+	go catalog.RegisterServiceWithKeepalive(*endpoint, *discover, *service, regCh, &wg)
 
 	// Ctrl+C handling
 	handler := make(chan os.Signal, 1)

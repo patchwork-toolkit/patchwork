@@ -10,7 +10,6 @@ import (
 )
 
 const (
-	minKeepaliveSec  = 5
 	keepaliveRetries = 5
 )
 
@@ -43,7 +42,7 @@ func RegisterService(client CatalogClient, s *Service) error {
 // endpoint: catalog endpoint. If empty - will be discovered using DNS-SD
 // s: service registration
 // sigCh: channel for shutdown signalisation from upstream
-func RegisterServiceWithKeepalive(endpoint string, discover bool, s *Service, sigCh <-chan bool, wg *sync.WaitGroup) {
+func RegisterServiceWithKeepalive(endpoint string, discover bool, s Service, sigCh <-chan bool, wg *sync.WaitGroup) {
 	defer wg.Done()
 	var err error
 	if discover {
@@ -56,18 +55,19 @@ func RegisterServiceWithKeepalive(endpoint string, discover bool, s *Service, si
 
 	// Register
 	client := NewRemoteCatalogClient(endpoint)
-	RegisterService(client, s)
+	RegisterService(client, &s)
 
 	// Will not keepalive registration with a negative TTL
 	if s.Ttl <= 0 {
-		log.Println("Registration has ttl <= 0. Will not start keepalive process")
+		log.Println("Registration has ttl <= 0. Will not start the keepalive routine")
 		return
 	}
+	log.Printf("RegisterInRemoteCatalog (%v/%v): will update registration periodically", endpoint, s.Id)
 
 	// Configure & start the keepalive routine
 	ksigCh := make(chan bool)
 	kerrCh := make(chan error)
-	go keepAlive(client, s, ksigCh, kerrCh)
+	go keepAlive(client, &s, ksigCh, kerrCh)
 
 	for {
 		select {
@@ -84,12 +84,12 @@ func RegisterServiceWithKeepalive(endpoint string, discover bool, s *Service, si
 			}
 			log.Println("Will use the new endpoint: ", endpoint)
 			client := NewRemoteCatalogClient(endpoint)
-			RegisterService(client, s)
-			go keepAlive(client, s, ksigCh, kerrCh)
+			RegisterService(client, &s)
+			go keepAlive(client, &s, ksigCh, kerrCh)
 
 		// catch a shutdown signal from the upstream
 		case <-sigCh:
-			log.Println("RegisterInRemoteCatalog shutdown signalled by the upstream")
+			log.Printf("RegisterInRemoteCatalog (%v/%v): shutdown signalled by the caller", endpoint, s.Id)
 			// signal shutdown to the keepAlive routine & close channels
 			ksigCh <- true
 			close(ksigCh)
@@ -108,15 +108,8 @@ func RegisterServiceWithKeepalive(endpoint string, discover bool, s *Service, si
 // sigCh: channel for shutdown signalisation from upstream
 // errCh: channel for error signalisation to upstream
 func keepAlive(client CatalogClient, s *Service, sigCh <-chan bool, errCh chan<- error) {
-	// calculate the timer ticker duration
-	var d time.Duration
-	if s.Ttl-minKeepaliveSec <= minKeepaliveSec {
-		d = time.Duration(minKeepaliveSec) * time.Second
-	} else {
-		d = time.Duration(s.Ttl-minKeepaliveSec*2) * time.Second
-	}
-
-	ticker := time.NewTicker(d)
+	dur := utils.KeepAliveDuration(s.Ttl)
+	ticker := time.NewTicker(dur)
 	errTries := 0
 
 	for {
@@ -125,7 +118,7 @@ func keepAlive(client CatalogClient, s *Service, sigCh <-chan bool, errCh chan<-
 			err := client.Update(s.Id, s)
 
 			if err == ErrorNotFound {
-				log.Printf("Registration %v not found in the remote catalog. TTL expired?", s.Id)
+				log.Printf("Registration %v not found in the remote catalog. TTL expired?\n", s.Id)
 				err = client.Add(s)
 				if err != nil {
 					log.Printf("Error accessing the catalog: %v\n", err)
@@ -147,8 +140,7 @@ func keepAlive(client CatalogClient, s *Service, sigCh <-chan bool, errCh chan<-
 				return
 			}
 		case <-sigCh:
-			log.Println("keepAlive routine shutdown signalled by the upstream")
-			// ticker.Stop()
+			// log.Println("keepAlive routine shutdown signalled by the upstream")
 			return
 		}
 	}
