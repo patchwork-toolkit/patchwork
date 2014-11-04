@@ -25,6 +25,24 @@ func serviceFromResponse(res *http.Response, apiLocation string) (*Service, erro
 	return &svc, nil
 }
 
+func servicesFromResponse(res *http.Response, apiLocation string) ([]Service, int, error) {
+	decoder := json.NewDecoder(res.Body)
+	defer res.Body.Close()
+
+	var coll Collection
+	err := decoder.Decode(&coll)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	svcs := make([]Service, 0, len(coll.Services))
+	for _, v := range coll.Services {
+		svcs = append(svcs, v.unLdify(apiLocation))
+	}
+
+	return svcs, len(svcs), nil
+}
+
 func NewRemoteCatalogClient(serverEndpoint string) *RemoteCatalogClient {
 	// Check if serverEndpoint is a correct URL
 	endpointUrl, err := url.Parse(serverEndpoint)
@@ -102,31 +120,17 @@ func (self *RemoteCatalogClient) Delete(id string) error {
 
 func (self *RemoteCatalogClient) GetServices(page, perPage int) ([]Service, int, error) {
 	res, err := http.Get(
-		fmt.Sprintf("%s?%s=%s&%s=%s",
+		fmt.Sprintf("%v?%v=%v&%v=%v",
 			self.serverEndpoint, GetParamPage, page, GetParamPerPage, perPage))
 	if err != nil {
 		return nil, 0, err
 	}
 
-	decoder := json.NewDecoder(res.Body)
-	defer res.Body.Close()
-
-	var coll Collection
-	err = decoder.Decode(&coll)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	svcs := make([]Service, 0, len(coll.Services))
-	for _, v := range coll.Services {
-		svcs = append(svcs, v.unLdify(self.serverEndpoint.Path))
-	}
-
-	return svcs, len(svcs), nil
+	return servicesFromResponse(res, self.serverEndpoint.Path)
 }
 
 func (self *RemoteCatalogClient) FindService(path, op, value string) (*Service, error) {
-	res, err := http.Get(fmt.Sprintf("%v/%v/%v/%v", self.serverEndpoint, path, op, value))
+	res, err := http.Get(fmt.Sprintf("%v/%v/%v/%v/%v", self.serverEndpoint, FTypeService, path, op, value))
 	if err != nil {
 		return nil, err
 	}
@@ -136,10 +140,17 @@ func (self *RemoteCatalogClient) FindService(path, op, value string) (*Service, 
 	} else if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("%v", res.StatusCode)
 	}
+
 	return serviceFromResponse(res, self.serverEndpoint.Path)
 }
 
-// TODO
 func (self *RemoteCatalogClient) FindServices(path, op, value string, page, perPage int) ([]Service, int, error) {
-	return nil, 0, nil
+	res, err := http.Get(
+		fmt.Sprintf("%v/%v/%v/%v/%v%?%v=%v&%v=%v",
+			self.serverEndpoint, FTypeServices, path, op, value, GetParamPage, page, GetParamPerPage, perPage))
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return servicesFromResponse(res, self.serverEndpoint.Path)
 }

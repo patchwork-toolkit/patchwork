@@ -25,6 +25,61 @@ func deviceFromResponse(res *http.Response, apiLocation string) (*Device, error)
 	return &d, nil
 }
 
+func devicesFromResponse(res *http.Response, apiLocation string) ([]Device, int, error) {
+	decoder := json.NewDecoder(res.Body)
+	defer res.Body.Close()
+
+	var coll Collection
+	err := decoder.Decode(&coll)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	devs := make([]Device, 0, len(coll.Devices))
+	for k, v := range coll.Devices {
+		d := *v.Device
+		for _, res := range coll.Resources {
+			if res.Device == k {
+				d.Resources = append(d.Resources, res)
+			}
+		}
+		devs = append(devs, d.unLdify(apiLocation))
+	}
+
+	return devs, len(coll.Devices), nil
+}
+
+func resourceFromResponse(res *http.Response, apiLocation string) (*Resource, error) {
+	decoder := json.NewDecoder(res.Body)
+	defer res.Body.Close()
+
+	var r Resource
+	err := decoder.Decode(&r)
+	if err != nil {
+		return nil, err
+	}
+	r = r.unLdify(apiLocation)
+	return &r, nil
+}
+
+func resourcesFromResponse(res *http.Response, apiLocation string) ([]Resource, int, error) {
+	decoder := json.NewDecoder(res.Body)
+	defer res.Body.Close()
+
+	var coll Collection
+	err := decoder.Decode(&coll)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	ress := make([]Resource, 0, len(coll.Resources))
+	for _, r := range coll.Resources {
+		ress = append(ress, r.unLdify(apiLocation))
+	}
+
+	return ress, len(coll.Resources), nil
+}
+
 func NewRemoteCatalogClient(serverEndpoint string) *RemoteCatalogClient {
 	// Check if serverEndpoint is a correct URL
 	endpointUrl, err := url.Parse(serverEndpoint)
@@ -102,50 +157,61 @@ func (self *RemoteCatalogClient) Delete(id string) error {
 
 func (self *RemoteCatalogClient) GetDevices(page int, perPage int) ([]Device, int, error) {
 	res, err := http.Get(
-		fmt.Sprintf("%s?%s=%s&%s=%s",
+		fmt.Sprintf("%v?%v=%v&%v=%v",
 			self.serverEndpoint, GetParamPage, page, GetParamPerPage, perPage))
 	if err != nil {
 		return nil, 0, err
 	}
 
-	decoder := json.NewDecoder(res.Body)
-	defer res.Body.Close()
+	return devicesFromResponse(res, self.serverEndpoint.Path)
+}
 
-	var coll Collection
-	err = decoder.Decode(&coll)
+func (self *RemoteCatalogClient) FindDevice(path, op, value string) (*Device, error) {
+	res, err := http.Get(fmt.Sprintf("%v/%v/%v/%v/%v", self.serverEndpoint, FTypeDevice, path, op, value))
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode == http.StatusNotFound {
+		return nil, ErrorNotFound
+	} else if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%v", res.StatusCode)
+	}
+	return deviceFromResponse(res, self.serverEndpoint.Path)
+}
+
+func (self *RemoteCatalogClient) FindDevices(path, op, value string, page, perPage int) ([]Device, int, error) {
+	res, err := http.Get(
+		fmt.Sprintf("%v/%v/%v/%v/%v?%v=%v&%v=%v",
+			self.serverEndpoint, FTypeDevices, path, op, value, GetParamPage, page, GetParamPerPage, perPage))
 	if err != nil {
 		return nil, 0, err
 	}
 
-	devs := make([]Device, 0, len(coll.Devices))
-	for k, v := range coll.Devices {
-		d := *v.Device
-		for _, res := range coll.Resources {
-			if res.Device == k {
-				d.Resources = append(d.Resources, res)
-			}
-		}
-		devs = append(devs, d.unLdify(self.serverEndpoint.Path))
-	}
-	return devs, len(coll.Devices), nil
+	return devicesFromResponse(res, self.serverEndpoint.Path)
 }
 
-// TODO
-func (self *RemoteCatalogClient) FindDevice(path, op, value string) (*Device, error) {
-	return nil, nil
-}
-
-// TODO
-func (self *RemoteCatalogClient) FindDevices(path, op, value string, page, perPage int) ([]Device, int, error) {
-	return nil, 0, nil
-}
-
-// TODO
 func (self *RemoteCatalogClient) FindResource(path, op, value string) (*Resource, error) {
-	return nil, nil
+	res, err := http.Get(fmt.Sprintf("%v/%v/%v/%v/%v", self.serverEndpoint, FTypeResource, path, op, value))
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode == http.StatusNotFound {
+		return nil, ErrorNotFound
+	} else if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%v", res.StatusCode)
+	}
+	return resourceFromResponse(res, self.serverEndpoint.Path)
 }
 
-// TODO
 func (self *RemoteCatalogClient) FindResources(path, op, value string, page, perPage int) ([]Resource, int, error) {
-	return nil, 0, nil
+	res, err := http.Get(
+		fmt.Sprintf("%v/%v/%v/%v/%v?%v=%v&%v=%v",
+			self.serverEndpoint, FTypeResources, path, op, value, GetParamPage, page, GetParamPerPage, perPage))
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return resourcesFromResponse(res, self.serverEndpoint.Path)
 }
