@@ -54,7 +54,7 @@ func newMQTTPublisher(conf *Config) *MQTTPublisher {
 	// Create and return publisher
 	publisher := &MQTTPublisher{
 		config:   &config,
-		clientId: conf.Id,
+		clientId: fmt.Sprintf("%v-%v", conf.Id, time.Now().Unix()),
 		dataCh:   make(chan AgentResponse),
 	}
 
