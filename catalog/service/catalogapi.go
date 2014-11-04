@@ -150,10 +150,13 @@ func (self ReadableCatalogAPI) Filter(w http.ResponseWriter, req *http.Request) 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		fmt.Fprintf(w, "Error processing the request: %s\n", err.Error())
+		return
 	}
 
 	if data == nil {
 		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "No matched entries found\n")
+		return
 	}
 
 	b, _ := json.Marshal(data)
