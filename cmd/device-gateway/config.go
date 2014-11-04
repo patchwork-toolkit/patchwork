@@ -108,22 +108,22 @@ type Config struct {
 }
 
 // Validates the loaded configuration
-func (self *Config) Validate() error {
+func (c *Config) Validate() error {
 	// Check if HTTP is configured
-	if self.Http.BindAddr == "" || self.Http.BindPort == 0 {
+	if c.Http.BindAddr == "" || c.Http.BindPort == 0 {
 		return fmt.Errorf("HTTP has to be properly configured")
 	}
 
 	// Check if REST protocol is configured
-	_, ok := self.Protocols[ProtocolTypeREST]
+	_, ok := c.Protocols[ProtocolTypeREST]
 	if !ok {
 		return fmt.Errorf("REST protocol has to be configured")
 	}
 
-	_, ok = self.Protocols[ProtocolTypeMQTT]
+	_, ok = c.Protocols[ProtocolTypeMQTT]
 	// Check if MQTT configuration is valid
 	if ok {
-		mqttConf := self.Protocols[ProtocolTypeMQTT].(MqttProtocol)
+		mqttConf := c.Protocols[ProtocolTypeMQTT].(MqttProtocol)
 
 		// Check that ServerUri is a valid URL
 		err := mqttConf.Validate()
@@ -154,8 +154,8 @@ func (self *Config) Validate() error {
 }
 
 // Finds resource record by given resource id
-func (self *Config) FindResource(resourceId string) (*Resource, bool) {
-	for _, d := range self.Devices {
+func (c *Config) FindResource(resourceId string) (*Resource, bool) {
+	for _, d := range c.Devices {
 		for _, r := range d.Resources {
 			if resourceId == d.ResourceId(r.Name) {
 				return &r, true
@@ -231,8 +231,8 @@ type Device struct {
 	Resources   []Resource
 }
 
-func (device *Device) ResourceId(name string) string {
-	return fmt.Sprintf("%s/%s", device.Name, name)
+func (d *Device) ResourceId(name string) string {
+	return fmt.Sprintf("%s/%s", d.Name, name)
 }
 
 //

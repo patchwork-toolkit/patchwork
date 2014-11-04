@@ -45,7 +45,7 @@ func RegisterServiceWithKeepalive(endpoint string, discover bool, s Service, sig
 	defer wg.Done()
 	var err error
 	if discover {
-		endpoint, err = utils.DiscoverCatalogEndpoint(DnssdServiceType)
+		endpoint, err = utils.DiscoverCatalogEndpoint(DNSSDServiceType)
 		if err != nil {
 			logger.Printf("RegisterServiceWithKeepalive() ERROR: Failed to discover the endpoint: %v", err.Error())
 			return
@@ -75,7 +75,7 @@ func RegisterServiceWithKeepalive(endpoint string, discover bool, s Service, sig
 			logger.Println("RegisterServiceWithKeepalive() ERROR:", e)
 			// Re-discover the endpoint if needed and start over
 			if discover {
-				endpoint, err = utils.DiscoverCatalogEndpoint(DnssdServiceType)
+				endpoint, err = utils.DiscoverCatalogEndpoint(DNSSDServiceType)
 				if err != nil {
 					logger.Println("RegisterServiceWithKeepalive() ERROR:", err.Error())
 					return

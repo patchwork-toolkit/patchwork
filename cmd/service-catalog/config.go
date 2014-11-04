@@ -25,24 +25,24 @@ var supportedBackends = map[string]bool{
 	"memory": true,
 }
 
-func (self *Config) Validate() error {
+func (c *Config) Validate() error {
 	var err error
-	if self.BindAddr == "" || self.BindPort == 0 {
+	if c.BindAddr == "" || c.BindPort == 0 {
 		err = fmt.Errorf("Empty host or port")
 	}
-	if !supportedBackends[self.Storage.Type] {
+	if !supportedBackends[c.Storage.Type] {
 		err = fmt.Errorf("Unsupported storage backend")
 	}
-	if self.ApiLocation == "" {
+	if c.ApiLocation == "" {
 		err = fmt.Errorf("apiLocation must be defined")
 	}
-	if self.StaticDir == "" {
+	if c.StaticDir == "" {
 		err = fmt.Errorf("staticDir must be defined")
 	}
-	if strings.HasSuffix(self.ApiLocation, "/") {
+	if strings.HasSuffix(c.ApiLocation, "/") {
 		err = fmt.Errorf("apiLocation must not have a training slash")
 	}
-	if strings.HasSuffix(self.StaticDir, "/") {
+	if strings.HasSuffix(c.StaticDir, "/") {
 		err = fmt.Errorf("staticDir must not have a training slash")
 	}
 	return err

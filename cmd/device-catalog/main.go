@@ -38,7 +38,7 @@ func main() {
 	var bonjourCh chan<- bool
 	if config.DnssdEnabled {
 		bonjourCh, err = bonjour.Register(config.Description,
-			catalog.DnssdServiceType,
+			catalog.DNSSDServiceType,
 			"",
 			config.BindPort,
 			[]string{fmt.Sprintf("uri=%s", config.ApiLocation)},
@@ -46,7 +46,7 @@ func main() {
 		if err != nil {
 			logger.Printf("Failed to register DNS-SD service: %s", err.Error())
 		} else {
-			logger.Println("Registered service via DNS-SD using type", catalog.DnssdServiceType)
+			logger.Println("Registered service via DNS-SD using type", catalog.DNSSDServiceType)
 			defer func(ch chan<- bool) {
 				ch <- true
 			}(bonjourCh)

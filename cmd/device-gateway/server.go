@@ -42,13 +42,13 @@ func newRESTfulAPI(conf *Config, dataCh chan<- DataRequest) *RESTfulAPI {
 }
 
 // Setup all routers, handlers and start a HTTP server (blocking call)
-func (self *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
-	self.mountCatalog(catalogStorage)
-	self.mountResources()
+func (api *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
+	api.mountCatalog(catalogStorage)
+	api.mountResources()
 
-	self.router.Methods("GET").PathPrefix(StaticLocation).HandlerFunc(self.staticHandler())
-	self.router.Methods("GET", "POST").Path("/dashboard").HandlerFunc(self.dashboardHandler(*confPath))
-	self.router.Methods("GET").Path(self.restConfig.Location).HandlerFunc(self.indexHandler())
+	api.router.Methods("GET").PathPrefix(StaticLocation).HandlerFunc(api.staticHandler())
+	api.router.Methods("GET", "POST").Path("/dashboard").HandlerFunc(api.dashboardHandler(*confPath))
+	api.router.Methods("GET").Path(api.restConfig.Location).HandlerFunc(api.indexHandler())
 
 	// Configure the middleware
 	n := negroni.New(
@@ -56,16 +56,16 @@ func (self *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
 		negroni.NewLogger(),
 	)
 	// Mount router
-	n.UseHandler(self.router)
+	n.UseHandler(api.router)
 
 	// Start the listener
-	addr := fmt.Sprintf("%v:%v", self.config.Http.BindAddr, self.config.Http.BindPort)
-	logger.Printf("RESTfulAPI.start() Starting server at http://%v%v", addr, self.restConfig.Location)
+	addr := fmt.Sprintf("%v:%v", api.config.Http.BindAddr, api.config.Http.BindPort)
+	logger.Printf("RESTfulAPI.start() Starting server at http://%v%v", addr, api.restConfig.Location)
 	n.Run(addr)
 }
 
 // Create a HTTP handler to serve and update dashboard configuration
-func (self *RESTfulAPI) dashboardHandler(confPath string) http.HandlerFunc {
+func (api *RESTfulAPI) dashboardHandler(confPath string) http.HandlerFunc {
 	dashboardConfPath := filepath.Join(filepath.Dir(confPath), "dashboard.json")
 
 	return func(rw http.ResponseWriter, req *http.Request) {
@@ -75,7 +75,7 @@ func (self *RESTfulAPI) dashboardHandler(confPath string) http.HandlerFunc {
 			body, err := ioutil.ReadAll(req.Body)
 			req.Body.Close()
 			if err != nil {
-				self.respondWithBadRequest(rw, err.Error())
+				api.respondWithBadRequest(rw, err.Error())
 				return
 			}
 
@@ -108,7 +108,7 @@ func (self *RESTfulAPI) dashboardHandler(confPath string) http.HandlerFunc {
 	}
 }
 
-func (self *RESTfulAPI) indexHandler() http.HandlerFunc {
+func (api *RESTfulAPI) indexHandler() http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		b, _ := json.Marshal("Welcome to Device Gateway RESTful API")
 		rw.Header().Set("Content-Type", "application/json")
@@ -116,7 +116,7 @@ func (self *RESTfulAPI) indexHandler() http.HandlerFunc {
 	}
 }
 
-func (self *RESTfulAPI) staticHandler() http.HandlerFunc {
+func (api *RESTfulAPI) staticHandler() http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 
 		// serve all /static/ctx files as ld+json
@@ -124,26 +124,26 @@ func (self *RESTfulAPI) staticHandler() http.HandlerFunc {
 			rw.Header().Set("Content-Type", "application/ld+json")
 		}
 		filePath := strings.Join(strings.Split(req.URL.Path, "/")[2:], "/")
-		http.ServeFile(rw, req, self.config.StaticDir+"/"+filePath)
+		http.ServeFile(rw, req, api.config.StaticDir+"/"+filePath)
 	}
 }
 
-func (self *RESTfulAPI) mountResources() {
-	for _, device := range self.config.Devices {
+func (api *RESTfulAPI) mountResources() {
+	for _, device := range api.config.Devices {
 		for _, resource := range device.Resources {
 			for _, protocol := range resource.Protocols {
 				if protocol.Type != ProtocolTypeREST {
 					continue
 				}
-				uri := self.restConfig.Location + "/" + device.Name + "/" + resource.Name
+				uri := api.restConfig.Location + "/" + device.Name + "/" + resource.Name
 				logger.Println("RESTfulAPI.mountResources() Mounting resource:", uri)
 				rid := device.ResourceId(resource.Name)
 				for _, method := range protocol.Methods {
 					switch method {
 					case "GET":
-						self.router.Methods("GET").Path(uri).HandlerFunc(self.createResourceGetHandler(rid))
+						api.router.Methods("GET").Path(uri).HandlerFunc(api.createResourceGetHandler(rid))
 					case "PUT":
-						self.router.Methods("PUT").Path(uri).HandlerFunc(self.createResourcePutHandler(rid))
+						api.router.Methods("PUT").Path(uri).HandlerFunc(api.createResourcePutHandler(rid))
 					}
 				}
 			}
@@ -151,23 +151,23 @@ func (self *RESTfulAPI) mountResources() {
 	}
 }
 
-func (self *RESTfulAPI) mountCatalog(catalogStorage catalog.CatalogStorage) {
+func (api *RESTfulAPI) mountCatalog(catalogStorage catalog.CatalogStorage) {
 	catalogAPI := catalog.NewReadableCatalogAPI(
 		catalogStorage,
 		CatalogLocation,
 		StaticLocation,
-		fmt.Sprintf("RESTfulAPI.mountCatalog() Local catalog at %s", self.config.Description),
+		fmt.Sprintf("RESTfulAPI.mountCatalog() Local catalog at %s", api.config.Description),
 	)
 
-	self.router.Methods("GET").Path(CatalogLocation + "/{type}/{path}/{op}/{value}").HandlerFunc(catalogAPI.Filter).Name("filter")
-	self.router.Methods("GET").Path(CatalogLocation + "/{dgwid}/{regid}/{resname}").HandlerFunc(catalogAPI.GetResource).Name("details")
-	self.router.Methods("GET").Path(CatalogLocation + "/{dgwid}/{regid}").HandlerFunc(catalogAPI.Get).Name("get")
-	self.router.Methods("GET").Path(CatalogLocation).HandlerFunc(catalogAPI.List).Name("list")
+	api.router.Methods("GET").Path(CatalogLocation + "/{type}/{path}/{op}/{value}").HandlerFunc(catalogAPI.Filter).Name("filter")
+	api.router.Methods("GET").Path(CatalogLocation + "/{dgwid}/{regid}/{resname}").HandlerFunc(catalogAPI.GetResource).Name("details")
+	api.router.Methods("GET").Path(CatalogLocation + "/{dgwid}/{regid}").HandlerFunc(catalogAPI.Get).Name("get")
+	api.router.Methods("GET").Path(CatalogLocation).HandlerFunc(catalogAPI.List).Name("list")
 
 	logger.Printf("RESTfulAPI.mountCatalog() Mounted local catalog at %v", CatalogLocation)
 }
 
-func (self *RESTfulAPI) createResourceGetHandler(resourceId string) http.HandlerFunc {
+func (api *RESTfulAPI) createResourceGetHandler(resourceId string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		logger.Printf("RESTfulAPI.createResourceGetHandler() %s %s", req.Method, req.RequestURI)
 
@@ -175,15 +175,15 @@ func (self *RESTfulAPI) createResourceGetHandler(resourceId string) http.Handler
 		v := req.Header.Get("Content-Type")
 		mediaType, _, err := mime.ParseMediaType(v)
 		if err != nil {
-			self.respondWithBadRequest(rw, err.Error())
+			api.respondWithBadRequest(rw, err.Error())
 			return
 		}
 
 		// Check if mediaType is supported by resource
 		isSupported := false
-		resource, found := self.config.FindResource(resourceId)
+		resource, found := api.config.FindResource(resourceId)
 		if !found {
-			self.respondWithNotFound(rw, "Resource does not exist")
+			api.respondWithNotFound(rw, "Resource does not exist")
 			return
 		}
 		for _, p := range resource.Protocols {
@@ -192,7 +192,7 @@ func (self *RESTfulAPI) createResourceGetHandler(resourceId string) http.Handler
 			}
 		}
 		if !isSupported {
-			self.respondWithUnsupportedMediaType(rw, "Media type is not supported by this resource")
+			api.respondWithUnsupportedMediaType(rw, "Media type is not supported by this resource")
 			return
 		}
 
@@ -203,7 +203,7 @@ func (self *RESTfulAPI) createResourceGetHandler(resourceId string) http.Handler
 			Arguments:  nil,
 			Reply:      make(chan AgentResponse),
 		}
-		self.dataCh <- dr
+		api.dataCh <- dr
 
 		// Wait for the response
 		repl := <-dr.Reply
@@ -211,14 +211,14 @@ func (self *RESTfulAPI) createResourceGetHandler(resourceId string) http.Handler
 		// Response to client
 		rw.Header().Set("Content-Type", mediaType)
 		if repl.IsError {
-			self.respondWithInternalServerError(rw, string(repl.Payload))
+			api.respondWithInternalServerError(rw, string(repl.Payload))
 			return
 		}
 		rw.Write(repl.Payload)
 	}
 }
 
-func (self *RESTfulAPI) createResourcePutHandler(resourceId string) http.HandlerFunc {
+func (api *RESTfulAPI) createResourcePutHandler(resourceId string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		logger.Printf("RESTfulAPI.createResourcePutHandler() %s %s", req.Method, req.RequestURI)
 
@@ -226,15 +226,15 @@ func (self *RESTfulAPI) createResourcePutHandler(resourceId string) http.Handler
 		v := req.Header.Get("Content-Type")
 		mediaType, _, err := mime.ParseMediaType(v)
 		if err != nil {
-			self.respondWithBadRequest(rw, err.Error())
+			api.respondWithBadRequest(rw, err.Error())
 			return
 		}
 
 		// Check if mediaType is supported by resource
 		isSupported := false
-		resource, found := self.config.FindResource(resourceId)
+		resource, found := api.config.FindResource(resourceId)
 		if !found {
-			self.respondWithNotFound(rw, "Resource does not exist")
+			api.respondWithNotFound(rw, "Resource does not exist")
 			return
 		}
 		for _, p := range resource.Protocols {
@@ -243,7 +243,7 @@ func (self *RESTfulAPI) createResourcePutHandler(resourceId string) http.Handler
 			}
 		}
 		if !isSupported {
-			self.respondWithUnsupportedMediaType(rw, "Media type is not supported by this resource")
+			api.respondWithUnsupportedMediaType(rw, "Media type is not supported by this resource")
 			return
 		}
 
@@ -251,7 +251,7 @@ func (self *RESTfulAPI) createResourcePutHandler(resourceId string) http.Handler
 		body, err := ioutil.ReadAll(req.Body)
 		req.Body.Close()
 		if err != nil {
-			self.respondWithBadRequest(rw, err.Error())
+			api.respondWithBadRequest(rw, err.Error())
 			return
 		}
 
@@ -263,7 +263,7 @@ func (self *RESTfulAPI) createResourcePutHandler(resourceId string) http.Handler
 			Reply:      make(chan AgentResponse),
 		}
 		logger.Printf("RESTfulAPI.createResourcePutHandler() Submitting data request %#v", dr)
-		self.dataCh <- dr
+		api.dataCh <- dr
 
 		// Wait for the response
 		repl := <-dr.Reply
@@ -271,14 +271,14 @@ func (self *RESTfulAPI) createResourcePutHandler(resourceId string) http.Handler
 		// Respond to client
 		rw.Header().Set("Content-Type", mediaType)
 		if repl.IsError {
-			self.respondWithInternalServerError(rw, string(repl.Payload))
+			api.respondWithInternalServerError(rw, string(repl.Payload))
 			return
 		}
 		rw.WriteHeader(http.StatusNoContent)
 	}
 }
 
-func (self *RESTfulAPI) respondWithNotFound(rw http.ResponseWriter, msg string) {
+func (api *RESTfulAPI) respondWithNotFound(rw http.ResponseWriter, msg string) {
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusNotFound)
 	err := &errorResponse{Error: msg}
@@ -286,7 +286,7 @@ func (self *RESTfulAPI) respondWithNotFound(rw http.ResponseWriter, msg string) 
 	rw.Write(b)
 }
 
-func (self *RESTfulAPI) respondWithBadRequest(rw http.ResponseWriter, msg string) {
+func (api *RESTfulAPI) respondWithBadRequest(rw http.ResponseWriter, msg string) {
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusBadRequest)
 	err := &errorResponse{Error: msg}
@@ -294,7 +294,7 @@ func (self *RESTfulAPI) respondWithBadRequest(rw http.ResponseWriter, msg string
 	rw.Write(b)
 }
 
-func (self *RESTfulAPI) respondWithUnsupportedMediaType(rw http.ResponseWriter, msg string) {
+func (api *RESTfulAPI) respondWithUnsupportedMediaType(rw http.ResponseWriter, msg string) {
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusUnsupportedMediaType)
 	err := &errorResponse{Error: msg}
@@ -302,7 +302,7 @@ func (self *RESTfulAPI) respondWithUnsupportedMediaType(rw http.ResponseWriter, 
 	rw.Write(b)
 }
 
-func (self *RESTfulAPI) respondWithInternalServerError(rw http.ResponseWriter, msg string) {
+func (api *RESTfulAPI) respondWithInternalServerError(rw http.ResponseWriter, msg string) {
 	rw.Header().Set("Content-Type", "application/json")
 	rw.WriteHeader(http.StatusInternalServerError)
 	err := &errorResponse{Error: msg}

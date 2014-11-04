@@ -38,22 +38,22 @@ const (
 	defaultTtl = 120
 )
 
-func registrationFromConfig(config *Config) (*sc.Service, error) {
-	serviceConfig := &sc.ServiceConfig{}
+func registrationFromConfig(conf *Config) (*sc.Service, error) {
+	c := &sc.ServiceConfig{}
 
-	json.Unmarshal([]byte(registrationTemplate), serviceConfig)
-	serviceConfig.Name = catalog.ApiCollectionType
-	serviceConfig.Host = config.PublicAddr
-	serviceConfig.Description = config.Description
-	serviceConfig.Ttl = defaultTtl
+	json.Unmarshal([]byte(registrationTemplate), c)
+	c.Name = catalog.ApiCollectionType
+	c.Host = conf.PublicAddr
+	c.Description = conf.Description
+	c.Ttl = defaultTtl
 
 	// meta
-	serviceConfig.Meta["serviceType"] = catalog.DnssdServiceType
-	serviceConfig.Meta["apiVersion"] = catalog.ApiVersion
+	c.Meta["serviceType"] = catalog.DNSSDServiceType
+	c.Meta["apiVersion"] = catalog.ApiVersion
 
 	// protocols
 	// port from the bind port, address from the public address
-	serviceConfig.Protocols[0].Endpoint["url"] = fmt.Sprintf("http://%v:%v%v", config.PublicAddr, config.BindPort, config.ApiLocation)
+	c.Protocols[0].Endpoint["url"] = fmt.Sprintf("http://%v:%v%v", conf.PublicAddr, conf.BindPort, conf.ApiLocation)
 
-	return serviceConfig.GetService()
+	return c.GetService()
 }

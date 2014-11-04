@@ -47,7 +47,7 @@ func RegisterDeviceWithKeepalive(endpoint string, discover bool, d Device, sigCh
 	defer wg.Done()
 	var err error
 	if discover {
-		endpoint, err = utils.DiscoverCatalogEndpoint(DnssdServiceType)
+		endpoint, err = utils.DiscoverCatalogEndpoint(DNSSDServiceType)
 		if err != nil {
 			logger.Printf("RegisterDeviceWithKeepalive() ERROR: Failed to discover the endpoint: %v", err.Error())
 			return
@@ -77,7 +77,7 @@ func RegisterDeviceWithKeepalive(endpoint string, discover bool, d Device, sigCh
 			logger.Println("RegisterDeviceWithKeepalive() ERROR:", e)
 			// Re-discover the endpoint if needed and start over
 			if discover {
-				endpoint, err = utils.DiscoverCatalogEndpoint(DnssdServiceType)
+				endpoint, err = utils.DiscoverCatalogEndpoint(DNSSDServiceType)
 				if err != nil {
 					logger.Println("RegisterDeviceWithKeepalive() ERROR:", err.Error())
 					return

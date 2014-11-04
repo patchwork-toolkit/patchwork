@@ -12,7 +12,7 @@ import (
 //
 // Executes a given agent code and sends the response to the agents inbox channel
 //
-func (self *AgentManager) executeTask(resourceId string, agent Agent, input []byte) AgentResponse {
+func (am *AgentManager) executeTask(resourceId string, agent Agent, input []byte) AgentResponse {
 	command := []string{"cmd", "/C", agent.Exec}
 	cmd := exec.Command(command[0], command[1:]...)
 	if agent.Dir != "" {
@@ -69,7 +69,7 @@ func (self *AgentManager) executeTask(resourceId string, agent Agent, input []by
 // read from command's stdout pipe. The read stdout data is wrapped into response
 // and sent the agents inbox channel
 //
-func (self *AgentManager) executeService(resourceId string, agent Agent) (*exec.Cmd, error) {
+func (am *AgentManager) executeService(resourceId string, agent Agent) (*exec.Cmd, error) {
 	command := []string{"cmd", "/C", agent.Exec}
 	cmd := exec.Command(command[0], command[1:]...)
 	if agent.Dir != "" {
@@ -85,7 +85,7 @@ func (self *AgentManager) executeService(resourceId string, agent Agent) (*exec.
 	if err != nil {
 		return nil, err
 	}
-	self.serviceInpipes[resourceId] = pipe
+	am.serviceInpipes[resourceId] = pipe
 
 	outStream, err := cmd.StdoutPipe()
 	if err != nil {
@@ -100,13 +100,13 @@ func (self *AgentManager) executeService(resourceId string, agent Agent) (*exec.
 			reply.Cached = time.Now()
 			reply.IsError = false
 			reply.Payload = scanner.Bytes()
-			self.agentInbox <- reply
+			am.agentInbox <- reply
 		}
 		if err = scanner.Err(); err != nil {
 			reply.Cached = time.Now()
 			reply.IsError = true
 			reply.Payload = []byte(err.Error())
-			self.agentInbox <- reply
+			am.agentInbox <- reply
 		}
 		out.Close()
 		pipe.Close()
@@ -121,7 +121,7 @@ func (self *AgentManager) executeService(resourceId string, agent Agent) (*exec.
 //
 // Stops a given command in a graceful way
 //
-func (self *AgentManager) stopService(cmd *exec.Cmd) {
+func (am *AgentManager) stopService(cmd *exec.Cmd) {
 	if cmd.Process == nil {
 		return
 	}
