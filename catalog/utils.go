@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"strings"
@@ -30,17 +29,17 @@ func DiscoverCatalogEndpoint(serviceType string) (endpoint string, err error) {
 		// create resolver
 		resolver, err := bonjour.NewResolver(nil)
 		if err != nil {
-			log.Println("Failed to initialize DNS-SD resolver:", err.Error())
+			logger.Println("Failed to initialize DNS-SD resolver:", err.Error())
 			break
 		}
 		// init the channel for results
 		results := make(chan *bonjour.ServiceEntry)
 
 		// send query and listen for answers
-		log.Println("Browsing...")
+		logger.Println("Browsing...")
 		err = resolver.Browse(serviceType, "", results)
 		if err != nil {
-			log.Println("Unable to browse DNS-SD services: ", err)
+			logger.Println("Unable to browse DNS-SD services: ", err)
 			break
 		}
 
@@ -48,17 +47,17 @@ func DiscoverCatalogEndpoint(serviceType string) (endpoint string, err error) {
 		var foundService *bonjour.ServiceEntry
 		select {
 		case foundService = <-results:
-			log.Printf("[DiscoverCatalogEndpoint] Discovered service: %v\n", foundService.ServiceInstanceName())
+			logger.Printf("[DiscoverCatalogEndpoint] Discovered service: %v\n", foundService.ServiceInstanceName())
 		case <-time.After(time.Duration(discoveryTimeoutSec) * time.Second):
-			log.Println("[DiscoverCatalogEndpoint] Timeout looking for a service")
+			logger.Println("[DiscoverCatalogEndpoint] Timeout looking for a service")
 		case <-sysSig:
-			log.Println("[DiscoverCatalogEndpoint] System interrupt signal received. Aborting the discovery")
+			logger.Println("[DiscoverCatalogEndpoint] System interrupt signal received. Aborting the discovery")
 			return endpoint, fmt.Errorf("Aborted by system interrupt")
 		}
 
 		// check if something found
 		if foundService == nil {
-			log.Printf("[DiscoverCatalogEndpoint] Could not discover a service %v withing the timeout. Starting from scratch...", serviceType)
+			logger.Printf("[DiscoverCatalogEndpoint] Could not discover a service %v withing the timeout. Starting from scratch...", serviceType)
 			// stop resolver
 			resolver.Exit <- true
 			// start the new iteration

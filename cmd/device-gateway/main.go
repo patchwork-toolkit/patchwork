@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 
@@ -16,10 +15,8 @@ var (
 )
 
 func main() {
-	log.SetPrefix("[device-gateway] ")
-	log.SetFlags(log.Ltime)
-
 	flag.Parse()
+
 	if *confPath == "" {
 		flag.Usage()
 		os.Exit(1)
@@ -27,7 +24,7 @@ func main() {
 
 	config, err := loadConfig(*confPath)
 	if err != nil {
-		log.Printf("Failed to load configuration: %v\n", err)
+		logger.Printf("Failed to load configuration: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -67,9 +64,9 @@ func main() {
 			[]string{fmt.Sprintf("uri=%s", restConfig.Location)},
 			nil)
 		if err != nil {
-			log.Printf("Failed to register DNS-SD service: %s", err.Error())
+			logger.Printf("Failed to register DNS-SD service: %s", err.Error())
 		} else {
-			log.Println("Registered service via DNS-SD using type", DNSSDServiceTypeDGW)
+			logger.Println("Registered service via DNS-SD using type", DNSSDServiceTypeDGW)
 		}
 	}
 
@@ -78,7 +75,7 @@ func main() {
 	signal.Notify(handler, os.Interrupt)
 	for sig := range handler {
 		if sig == os.Interrupt {
-			log.Println("Caught interrupt signal...")
+			logger.Println("Caught interrupt signal...")
 			break
 		}
 	}
@@ -104,6 +101,6 @@ func main() {
 	}
 	wg.Wait()
 
-	log.Println("Stopped")
+	logger.Println("Stopped")
 	os.Exit(0)
 }

@@ -3,7 +3,6 @@ package catalog
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"strings"
 )
 
@@ -25,7 +24,7 @@ func recursiveMatch(data interface{}, path []string) interface{} {
 	case map[string]interface{}:
 		for k, v := range data.(map[string]interface{}) {
 			if k == path[0] {
-				// log.Printf("MAP key: %s, path: %s, value: %v", k, path, v)
+				// logger.Printf("MAP key: %s, path: %s, value: %v", k, path, v)
 				return recursiveMatch(v, path[1:])
 			}
 		}
@@ -33,12 +32,13 @@ func recursiveMatch(data interface{}, path []string) interface{} {
 		for _, v := range data.([]interface{}) {
 			// follow the array's elements
 			if _, ok := v.(map[string]interface{})[path[0]]; ok {
-				// log.Printf("ARRAY key: %s, path: %s, value: %v", path[0], path, v)
+				// logger.Printf("ARRAY key: %s, path: %s, value: %v", path[0], path, v)
 				return recursiveMatch(v, path)
 			}
 		}
 	default:
-		log.Println("Unknown type for", data)
+		//TODO->logger.Println("Unknown type for", data)
+		logger.Println("Unknown type for", data)
 	}
 
 	return nil

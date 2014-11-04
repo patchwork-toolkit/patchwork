@@ -3,7 +3,6 @@ package device
 import (
 	"errors"
 	"fmt"
-	"log"
 	"sort"
 	"strings"
 	"sync"
@@ -181,11 +180,11 @@ func (self *MemoryStorage) getResourcesCount() int {
 
 // Clean all remote registrations which expire time is larger than the given timestamp
 func (self *MemoryStorage) cleanExpired(timestamp time.Time) {
-	// log.Printf("Storage cleaner: will clean up all entries expired after %v", timestamp)
+	// logger.Printf("Storage cleaner: will clean up all entries expired after %v", timestamp)
 	self.mutex.Lock()
 	for id, d := range self.devices {
 		if d.Ttl >= 0 && !d.Expires.After(timestamp) {
-			log.Printf("Storage cleaner: registration %v has expired\n", id)
+			logger.Printf("Storage cleaner: registration %v has expired\n", id)
 			for _, rid := range d.Resources {
 				delete(self.resources, rid)
 			}

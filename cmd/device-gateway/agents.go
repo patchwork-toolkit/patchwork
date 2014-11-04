@@ -2,7 +2,6 @@ package main
 
 import (
 	"io"
-	"log"
 	"os/exec"
 	"time"
 )
@@ -83,7 +82,7 @@ func (self *AgentManager) setPublishingChannel(ch chan<- AgentResponse) {
 // Creates all agents and start listening on the inbox channels
 //
 func (self *AgentManager) start() {
-	log.Println("AgentManager.start()")
+	logger.Println("AgentManager.start()")
 
 	for _, d := range self.config.Devices {
 		for _, r := range d.Resources {
@@ -96,7 +95,7 @@ func (self *AgentManager) start() {
 			case ExecTypeService:
 				self.createService(rid, r.Agent)
 			default:
-				log.Printf("ERROR: Unsupported execution type %s for resource %s\n", r.Agent.Type, rid)
+				logger.Printf("ERROR: Unsupported execution type %s for resource %s\n", r.Agent.Type, rid)
 			}
 		}
 	}
@@ -108,7 +107,7 @@ func (self *AgentManager) start() {
 		case resp := <-self.agentInbox:
 			// Receive data from agents and cache it
 			if resp.IsError {
-				log.Printf("AgentManager: ERROR received from %s: %s", resp.ResourceId, resp.IsError, string(resp.Payload))
+				logger.Printf("AgentManager: ERROR received from %s: %s", resp.ResourceId, resp.IsError, string(resp.Payload))
 			}
 
 			// Cache data
@@ -128,9 +127,9 @@ func (self *AgentManager) start() {
 							select {
 							case self.publishOutbox <- resp:
 							//case <-time.Tick(time.Duration(2) * time.Second):
-							//	log.Printf("AgentManager: WARNING timeout while publishing data to publishOutbox")
+							//	logger.Printf("AgentManager: WARNING timeout while publishing data to publishOutbox")
 							default:
-								log.Printf("AgentManager: WARNING publishOutbox is blocked. Skipping current value...")
+								logger.Printf("AgentManager: WARNING publishOutbox is blocked. Skipping current value...")
 							}
 						}
 					}
@@ -140,11 +139,11 @@ func (self *AgentManager) start() {
 		case req := <-self.dataRequestInbox:
 			// Receive request from a service layer, check the cache hit and TTL.
 			// If not available execute the task or return not available error for timer/service
-			log.Printf("AgentManager: request for data from %s", req.ResourceId)
+			logger.Printf("AgentManager: request for data from %s", req.ResourceId)
 
 			resource, ok := self.config.FindResource(req.ResourceId)
 			if !ok {
-				log.Printf("AgentManager: ERROR: resource %s not found!", req.ResourceId)
+				logger.Printf("AgentManager: ERROR: resource %s not found!", req.ResourceId)
 				req.Reply <- AgentResponse{
 					ResourceId: req.ResourceId,
 					Payload:    []byte("Resource not found"),
@@ -192,7 +191,7 @@ func (self *AgentManager) start() {
 					}
 
 				} else {
-					log.Printf("AgentManager: ERROR: Unsupported execution type %s for resource %s!", resource.Agent.Type, req.ResourceId)
+					logger.Printf("AgentManager: ERROR: Unsupported execution type %s for resource %s!", resource.Agent.Type, req.ResourceId)
 					req.Reply <- AgentResponse{
 						ResourceId: req.ResourceId,
 						Payload:    []byte("Unsupported execution type"),
@@ -205,19 +204,19 @@ func (self *AgentManager) start() {
 			// For Read data requests
 			resp, ok := self.dataCache[req.ResourceId]
 			if ok && (resource.Agent.Type != ExecTypeTask || time.Now().Sub(resp.Cached) <= AgentResponseCacheTTL) {
-				log.Printf("AgentManager: cache HIT for resource %s", req.ResourceId)
+				logger.Printf("AgentManager: cache HIT for resource %s", req.ResourceId)
 				req.Reply <- resp
 				continue
 			}
 			if resource.Agent.Type == ExecTypeTask {
 				// execute task, cache data and return
-				log.Printf("AgentManager: cache MISSED for resource %s", req.ResourceId)
+				logger.Printf("AgentManager: cache MISSED for resource %s", req.ResourceId)
 				resp := self.executeTask(req.ResourceId, resource.Agent, nil)
 				self.dataCache[resp.ResourceId] = resp
 				req.Reply <- resp
 				continue
 			}
-			log.Printf("AgentManager: ERROR: Data for resource %s not available!", req.ResourceId)
+			logger.Printf("AgentManager: ERROR: Data for resource %s not available!", req.ResourceId)
 			req.Reply <- AgentResponse{
 				ResourceId: req.ResourceId,
 				Payload:    []byte("Data not available"),
@@ -232,17 +231,17 @@ func (self *AgentManager) start() {
 // Closes all channels.
 //
 func (self *AgentManager) stop() {
-	log.Println("AgentManager.stop()")
+	logger.Println("AgentManager.stop()")
 
 	// Stop timers
 	for r, t := range self.timers {
-		log.Printf("Stopping %s's timer...", r)
+		logger.Printf("Stopping %s's timer...", r)
 		t.Stop()
 	}
 
 	// Stop services
 	for r, s := range self.services {
-		log.Printf("Stopping %s's service...", r)
+		logger.Printf("Stopping %s's service...", r)
 		self.stopService(s)
 	}
 }
@@ -259,7 +258,7 @@ func (self *AgentManager) DataRequestInbox() chan<- DataRequest {
 //
 func (self *AgentManager) createTimer(resourceId string, agent Agent) {
 	if agent.Type != ExecTypeTimer {
-		log.Printf("ERROR: %s is not %s but %s", resourceId, ExecTypeTimer, agent.Type)
+		logger.Printf("ERROR: %s is not %s but %s", resourceId, ExecTypeTimer, agent.Type)
 		return
 	}
 	ticker := time.NewTicker(agent.Interval * time.Second)
@@ -270,7 +269,7 @@ func (self *AgentManager) createTimer(resourceId string, agent Agent) {
 	}(resourceId, agent)
 	self.timers[resourceId] = ticker
 
-	log.Printf("AgentManager.createTimer(%s)", resourceId)
+	logger.Printf("AgentManager.createTimer(%s)", resourceId)
 }
 
 //
@@ -278,7 +277,7 @@ func (self *AgentManager) createTimer(resourceId string, agent Agent) {
 //
 func (self *AgentManager) validateTask(resourceId string, agent Agent) {
 	if agent.Type != ExecTypeTask {
-		log.Printf("ERROR: %s is not %s but %s", resourceId, ExecTypeTask, agent.Type)
+		logger.Printf("ERROR: %s is not %s but %s", resourceId, ExecTypeTask, agent.Type)
 		return
 	}
 
@@ -286,20 +285,20 @@ func (self *AgentManager) validateTask(resourceId string, agent Agent) {
 		self.agentInbox <- self.executeTask(resourceId, agent, nil)
 	}()
 
-	log.Printf("AgentManager.validateTask(%s)", resourceId)
+	logger.Printf("AgentManager.validateTask(%s)", resourceId)
 }
 
 func (self *AgentManager) createService(resourceId string, agent Agent) {
 	if agent.Type != ExecTypeService {
-		log.Printf("ERROR: %s is not %s but %s", resourceId, ExecTypeService, agent.Type)
+		logger.Printf("ERROR: %s is not %s but %s", resourceId, ExecTypeService, agent.Type)
 		return
 	}
 	service, err := self.executeService(resourceId, agent)
 	if err != nil {
-		log.Printf("ERROR: Failed to create service %s: %s", resourceId, err.Error())
+		logger.Printf("ERROR: Failed to create service %s: %s", resourceId, err.Error())
 		return
 	}
 	self.services[resourceId] = service
 
-	log.Printf("AgentManager.createService(%s)", resourceId)
+	logger.Printf("AgentManager.createService(%s)", resourceId)
 }

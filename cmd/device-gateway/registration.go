@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"sync"
 
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
@@ -71,7 +70,7 @@ func registerInRemoteCatalog(devices []catalog.Device, config *Config) ([]chan<-
 	var wg sync.WaitGroup
 
 	if len(config.Catalog) > 0 {
-		log.Println("Will now register in the configured remote catalogs")
+		logger.Println("Will now register in the configured remote catalogs")
 
 		for _, cat := range config.Catalog {
 			for _, d := range devices {

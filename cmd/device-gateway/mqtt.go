@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"strings"
 	"time"
 
@@ -68,12 +67,12 @@ func (self *MQTTPublisher) dataInbox() chan<- AgentResponse {
 }
 
 func (self *MQTTPublisher) start() {
-	log.Println("MQTTPublisher.start()")
+	logger.Println("MQTTPublisher.start()")
 
 	if self.config.Discover && self.config.ServerUri == "" {
 		err := self.discoverBrokerEndpoint()
 		if err != nil {
-			log.Println("MQTTPublisher: failed to start publisher:", err.Error())
+			logger.Println("MQTTPublisher: failed to start publisher:", err.Error())
 			return
 		}
 	}
@@ -82,25 +81,25 @@ func (self *MQTTPublisher) start() {
 	self.configureMqttConnection()
 
 	// start the connection routine
-	log.Printf("MQTTPublisher: Will connect to the broker %v\n", self.config.ServerUri)
+	logger.Printf("MQTTPublisher: Will connect to the broker %v\n", self.config.ServerUri)
 	go self.connect(0)
 
 	qos := 1
 	prefix := self.config.Prefix
 	for resp := range self.dataCh {
 		if !self.client.IsConnected() {
-			log.Println("MQTTPublisher: got data while not connected to the broker. **discarded**")
+			logger.Println("MQTTPublisher: got data while not connected to the broker. **discarded**")
 			continue
 		}
 		if resp.IsError {
-			log.Println("MQTTPublisher: data ERROR from agent manager:", string(resp.Payload))
+			logger.Println("MQTTPublisher: data ERROR from agent manager:", string(resp.Payload))
 			continue
 		}
 		topic := fmt.Sprintf("%s/%s", prefix, resp.ResourceId)
 		self.client.Publish(MQTT.QoS(qos), topic, resp.Payload)
 		// We dont' wait for confirmation from broker (avoid blocking here!)
 		//<-r
-		log.Println("MQTTPublisher: published to", topic)
+		logger.Println("MQTTPublisher: published to", topic)
 	}
 }
 
@@ -127,7 +126,7 @@ func (p *MQTTPublisher) discoverBrokerEndpoint() error {
 			if !supportsPub {
 				continue
 			}
-			log.Println(proto.Endpoint["url"])
+			logger.Println(proto.Endpoint["url"])
 			if ProtocolType(proto.Type) == ProtocolTypeMQTT {
 				p.config.ServerUri = proto.Endpoint["url"].(string)
 				break
@@ -143,7 +142,7 @@ func (p *MQTTPublisher) discoverBrokerEndpoint() error {
 }
 
 func (self *MQTTPublisher) stop() {
-	log.Println("MQTTPublisher.stop()")
+	logger.Println("MQTTPublisher.stop()")
 	if self.client != nil && self.client.IsConnected() {
 		self.client.Disconnect(500)
 	}
@@ -151,11 +150,11 @@ func (self *MQTTPublisher) stop() {
 
 func (self *MQTTPublisher) connect(backOff int) {
 	if self.client == nil {
-		log.Printf("MQTTPublisher: client is not configured")
+		logger.Printf("MQTTPublisher: client is not configured")
 		return
 	}
 	for {
-		log.Printf("MQTTPublisher: connecting to the broker %v, backOff: %v sec\n", self.config.ServerUri, backOff)
+		logger.Printf("MQTTPublisher: connecting to the broker %v, backOff: %v sec\n", self.config.ServerUri, backOff)
 		time.Sleep(time.Duration(backOff) * time.Second)
 		if self.client.IsConnected() {
 			break
@@ -164,7 +163,7 @@ func (self *MQTTPublisher) connect(backOff int) {
 		if err == nil {
 			break
 		}
-		log.Printf("MQTTPublisher: failed to connect: %v\n", err.Error())
+		logger.Printf("MQTTPublisher: failed to connect: %v\n", err.Error())
 		if backOff == 0 {
 			backOff = 10
 		} else if backOff <= 600 {
@@ -172,12 +171,12 @@ func (self *MQTTPublisher) connect(backOff int) {
 		}
 	}
 
-	log.Printf("MQTTPublisher: connected to the broker %v", self.config.ServerUri)
+	logger.Printf("MQTTPublisher: connected to the broker %v", self.config.ServerUri)
 	return
 }
 
 func (self *MQTTPublisher) onConnectionLost(client *MQTT.MqttClient, reason error) {
-	log.Println("MQTTPulbisher: lost connection to the broker: ", reason.Error())
+	logger.Println("MQTTPulbisher: lost connection to the broker: ", reason.Error())
 
 	// Initialize a new client and reconnect
 	self.configureMqttConnection()
@@ -204,12 +203,12 @@ func (self *MQTTPublisher) configureMqttConnection() {
 		if self.config.CaFile != "" {
 			caFile, err := ioutil.ReadFile(self.config.CaFile)
 			if err != nil {
-				log.Printf("MQTTPublisher: error reading CA file %s:%s\n", self.config.CaFile, err.Error())
+				logger.Printf("MQTTPublisher: error reading CA file %s:%s\n", self.config.CaFile, err.Error())
 			} else {
 				tlsConfig.RootCAs = x509.NewCertPool()
 				ok := tlsConfig.RootCAs.AppendCertsFromPEM(caFile)
 				if !ok {
-					log.Printf("MQTTPublisher: error parsing the CA certificate %s\n", self.config.CaFile)
+					logger.Printf("MQTTPublisher: error parsing the CA certificate %s\n", self.config.CaFile)
 				}
 			}
 		}
@@ -217,7 +216,7 @@ func (self *MQTTPublisher) configureMqttConnection() {
 		if self.config.CertFile != "" && self.config.KeyFile != "" {
 			cert, err := tls.LoadX509KeyPair(self.config.CertFile, self.config.KeyFile)
 			if err != nil {
-				log.Printf("MQTTPublisher: error loading client TLS credentials: %s\n",
+				logger.Printf("MQTTPublisher: error loading client TLS credentials: %s\n",
 					err.Error())
 			} else {
 				tlsConfig.Certificates = []tls.Certificate{cert}

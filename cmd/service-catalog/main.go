@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"strconv"
@@ -25,12 +24,12 @@ func main() {
 
 	config, err := loadConfig(*confPath)
 	if err != nil {
-		log.Fatalf("Error reading config file %v: %v", *confPath, err)
+		logger.Fatalf("Error reading config file %v: %v", *confPath, err)
 	}
 
 	r, err := setupRouter(config)
 	if err != nil {
-		log.Fatal(err.Error())
+		logger.Fatal(err.Error())
 	}
 
 	// Announce service using DNS-SD
@@ -43,9 +42,9 @@ func main() {
 			[]string{fmt.Sprintf("uri=%s", config.ApiLocation)},
 			nil)
 		if err != nil {
-			log.Printf("Failed to register DNS-SD service: %s", err.Error())
+			logger.Printf("Failed to register DNS-SD service: %s", err.Error())
 		} else {
-			log.Println("Registered service via DNS-SD using type", catalog.DnssdServiceType)
+			logger.Println("Registered service via DNS-SD using type", catalog.DnssdServiceType)
 			defer func(ch chan<- bool) {
 				ch <- true
 			}(bonjourCh)
@@ -65,7 +64,7 @@ func main() {
 
 			//TODO: put here the last will logic
 
-			log.Println("Stopped")
+			logger.Println("Stopped")
 			os.Exit(0)
 		}
 	}()
@@ -80,7 +79,7 @@ func main() {
 
 	// Start listener
 	endpoint := fmt.Sprintf("%s:%s", config.BindAddr, strconv.Itoa(config.BindPort))
-	log.Printf("Starting standalone Service Catalog at %v%v", endpoint, config.ApiLocation)
+	logger.Printf("Starting standalone Service Catalog at %v%v", endpoint, config.ApiLocation)
 	n.Run(endpoint)
 }
 

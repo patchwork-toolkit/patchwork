@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/signal"
 	"strings"
@@ -29,14 +28,14 @@ func main() {
 	}
 
 	if *endpoint == "" && !*discover {
-		log.Println("ERROR: -endpoint was not provided and discover flag not set.")
+		logger.Println("ERROR: -endpoint was not provided and discover flag not set.")
 		flag.Usage()
 		os.Exit(1)
 	}
 
 	service, err := LoadConfigFromFile(*confPath)
 	if err != nil {
-		log.Fatal("Unable to read service configuration from file: ", err)
+		logger.Fatal("Unable to read service configuration from file: ", err)
 	}
 
 	// Launch the registration routine
@@ -50,7 +49,7 @@ func main() {
 	signal.Notify(handler, os.Interrupt)
 	for sig := range handler {
 		if sig == os.Interrupt {
-			log.Println("Caught interrupt signal...")
+			logger.Println("Caught interrupt signal...")
 			break
 		}
 	}
@@ -62,7 +61,7 @@ func main() {
 	}
 	wg.Wait()
 
-	log.Println("Stopped")
+	logger.Println("Stopped")
 	os.Exit(0)
 }
 
