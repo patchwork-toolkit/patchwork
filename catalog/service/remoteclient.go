@@ -125,9 +125,18 @@ func (self *RemoteCatalogClient) GetServices(page, perPage int) ([]Service, int,
 	return svcs, len(svcs), nil
 }
 
-// TODO
 func (self *RemoteCatalogClient) FindService(path, op, value string) (*Service, error) {
-	return nil, nil
+	res, err := http.Get(fmt.Sprintf("%v/%v/%v/%v", self.serverEndpoint, path, op, value))
+	if err != nil {
+		return nil, err
+	}
+
+	if res.StatusCode == http.StatusNotFound {
+		return nil, ErrorNotFound
+	} else if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%v", res.StatusCode)
+	}
+	return serviceFromResponse(res, self.serverEndpoint.Path)
 }
 
 // TODO
