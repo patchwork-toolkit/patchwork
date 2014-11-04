@@ -60,7 +60,7 @@ func (self *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
 
 	// Start the listener
 	addr := fmt.Sprintf("%v:%v", self.config.Http.BindAddr, self.config.Http.BindPort)
-	logger.Printf("Starting server at http://%v%v", addr, self.restConfig.Location)
+	logger.Printf("RESTfulAPI.start() Starting server at http://%v%v", addr, self.restConfig.Location)
 	n.Run(addr)
 }
 
@@ -136,7 +136,7 @@ func (self *RESTfulAPI) mountResources() {
 					continue
 				}
 				uri := self.restConfig.Location + "/" + device.Name + "/" + resource.Name
-				logger.Println("RESTfulAPI: Mounting resource:", uri)
+				logger.Println("RESTfulAPI.mountResources() Mounting resource:", uri)
 				rid := device.ResourceId(resource.Name)
 				for _, method := range protocol.Methods {
 					switch method {
@@ -156,7 +156,7 @@ func (self *RESTfulAPI) mountCatalog(catalogStorage catalog.CatalogStorage) {
 		catalogStorage,
 		CatalogLocation,
 		StaticLocation,
-		fmt.Sprintf("Local catalog at %s", self.config.Description),
+		fmt.Sprintf("RESTfulAPI.mountCatalog() Local catalog at %s", self.config.Description),
 	)
 
 	self.router.Methods("GET").Path(CatalogLocation + "/{type}/{path}/{op}/{value}").HandlerFunc(catalogAPI.Filter).Name("filter")
@@ -164,12 +164,12 @@ func (self *RESTfulAPI) mountCatalog(catalogStorage catalog.CatalogStorage) {
 	self.router.Methods("GET").Path(CatalogLocation + "/{dgwid}/{regid}").HandlerFunc(catalogAPI.Get).Name("get")
 	self.router.Methods("GET").Path(CatalogLocation).HandlerFunc(catalogAPI.List).Name("list")
 
-	logger.Printf("Mounted local catalog at %v", CatalogLocation)
+	logger.Printf("RESTfulAPI.mountCatalog() Mounted local catalog at %v", CatalogLocation)
 }
 
 func (self *RESTfulAPI) createResourceGetHandler(resourceId string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
-		logger.Printf("RESTfulAPI: %s %s", req.Method, req.RequestURI)
+		logger.Printf("RESTfulAPI.createResourceGetHandler() %s %s", req.Method, req.RequestURI)
 
 		// Resolve mediaType
 		v := req.Header.Get("Content-Type")
@@ -220,7 +220,7 @@ func (self *RESTfulAPI) createResourceGetHandler(resourceId string) http.Handler
 
 func (self *RESTfulAPI) createResourcePutHandler(resourceId string) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
-		logger.Printf("RESTfulAPI: %s %s", req.Method, req.RequestURI)
+		logger.Printf("RESTfulAPI.createResourcePutHandler() %s %s", req.Method, req.RequestURI)
 
 		// Resolve mediaType
 		v := req.Header.Get("Content-Type")
@@ -262,7 +262,7 @@ func (self *RESTfulAPI) createResourcePutHandler(resourceId string) http.Handler
 			Arguments:  body,
 			Reply:      make(chan AgentResponse),
 		}
-		logger.Printf("RESTfulAPI: Submitting data request %#v", dr)
+		logger.Printf("RESTfulAPI.createResourcePutHandler() Submitting data request %#v", dr)
 		self.dataCh <- dr
 
 		// Wait for the response

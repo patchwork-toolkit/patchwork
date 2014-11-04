@@ -72,7 +72,7 @@ func (self *MQTTPublisher) start() {
 	if self.config.Discover && self.config.ServerUri == "" {
 		err := self.discoverBrokerEndpoint()
 		if err != nil {
-			logger.Println("MQTTPublisher: failed to start publisher:", err.Error())
+			logger.Println("MQTTPublisher.start() failed to start publisher:", err.Error())
 			return
 		}
 	}
@@ -81,25 +81,25 @@ func (self *MQTTPublisher) start() {
 	self.configureMqttConnection()
 
 	// start the connection routine
-	logger.Printf("MQTTPublisher: Will connect to the broker %v\n", self.config.ServerUri)
+	logger.Printf("MQTTPublisher.start() Will connect to the broker %v\n", self.config.ServerUri)
 	go self.connect(0)
 
 	qos := 1
 	prefix := self.config.Prefix
 	for resp := range self.dataCh {
 		if !self.client.IsConnected() {
-			logger.Println("MQTTPublisher: got data while not connected to the broker. **discarded**")
+			logger.Println("MQTTPublisher.start() got data while not connected to the broker. **discarded**")
 			continue
 		}
 		if resp.IsError {
-			logger.Println("MQTTPublisher: data ERROR from agent manager:", string(resp.Payload))
+			logger.Println("MQTTPublisher.start() data ERROR from agent manager:", string(resp.Payload))
 			continue
 		}
 		topic := fmt.Sprintf("%s/%s", prefix, resp.ResourceId)
 		self.client.Publish(MQTT.QoS(qos), topic, resp.Payload)
 		// We dont' wait for confirmation from broker (avoid blocking here!)
 		//<-r
-		logger.Println("MQTTPublisher: published to", topic)
+		logger.Println("MQTTPublisher.start() published to", topic)
 	}
 }
 
@@ -150,11 +150,11 @@ func (self *MQTTPublisher) stop() {
 
 func (self *MQTTPublisher) connect(backOff int) {
 	if self.client == nil {
-		logger.Printf("MQTTPublisher: client is not configured")
+		logger.Printf("MQTTPublisher.connect() client is not configured")
 		return
 	}
 	for {
-		logger.Printf("MQTTPublisher: connecting to the broker %v, backOff: %v sec\n", self.config.ServerUri, backOff)
+		logger.Printf("MQTTPublisher.connect() connecting to the broker %v, backOff: %v sec\n", self.config.ServerUri, backOff)
 		time.Sleep(time.Duration(backOff) * time.Second)
 		if self.client.IsConnected() {
 			break
@@ -163,7 +163,7 @@ func (self *MQTTPublisher) connect(backOff int) {
 		if err == nil {
 			break
 		}
-		logger.Printf("MQTTPublisher: failed to connect: %v\n", err.Error())
+		logger.Printf("MQTTPublisher.connect() failed to connect: %v\n", err.Error())
 		if backOff == 0 {
 			backOff = 10
 		} else if backOff <= 600 {
@@ -171,12 +171,12 @@ func (self *MQTTPublisher) connect(backOff int) {
 		}
 	}
 
-	logger.Printf("MQTTPublisher: connected to the broker %v", self.config.ServerUri)
+	logger.Printf("MQTTPublisher.connect() connected to the broker %v", self.config.ServerUri)
 	return
 }
 
 func (self *MQTTPublisher) onConnectionLost(client *MQTT.MqttClient, reason error) {
-	logger.Println("MQTTPulbisher: lost connection to the broker: ", reason.Error())
+	logger.Println("MQTTPulbisher.onConnectionLost() lost connection to the broker: ", reason.Error())
 
 	// Initialize a new client and reconnect
 	self.configureMqttConnection()
@@ -203,12 +203,12 @@ func (self *MQTTPublisher) configureMqttConnection() {
 		if self.config.CaFile != "" {
 			caFile, err := ioutil.ReadFile(self.config.CaFile)
 			if err != nil {
-				logger.Printf("MQTTPublisher: error reading CA file %s:%s\n", self.config.CaFile, err.Error())
+				logger.Printf("MQTTPublisher.configureMqttConnection() ERROR: failed to read CA file %s:%s\n", self.config.CaFile, err.Error())
 			} else {
 				tlsConfig.RootCAs = x509.NewCertPool()
 				ok := tlsConfig.RootCAs.AppendCertsFromPEM(caFile)
 				if !ok {
-					logger.Printf("MQTTPublisher: error parsing the CA certificate %s\n", self.config.CaFile)
+					logger.Printf("MQTTPublisher.configureMqttConnection() ERROR: failed to parse CA certificate %s\n", self.config.CaFile)
 				}
 			}
 		}
@@ -216,7 +216,7 @@ func (self *MQTTPublisher) configureMqttConnection() {
 		if self.config.CertFile != "" && self.config.KeyFile != "" {
 			cert, err := tls.LoadX509KeyPair(self.config.CertFile, self.config.KeyFile)
 			if err != nil {
-				logger.Printf("MQTTPublisher: error loading client TLS credentials: %s\n",
+				logger.Printf("MQTTPublisher.configureMqttConnection() ERROR: failed to load client TLS credentials: %s\n",
 					err.Error())
 			} else {
 				tlsConfig.Certificates = []tls.Certificate{cert}
