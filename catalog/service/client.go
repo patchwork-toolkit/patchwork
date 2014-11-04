@@ -21,19 +21,19 @@ func (sc *ServiceConfig) GetService() (*Service, error) {
 // Catalog client
 type CatalogClient interface {
 	// CRUD
-	Get(string) (*Service, error)
-	Add(*Service) error
-	Update(string, *Service) error
-	Delete(string) error
+	Get(id string) (*Service, error)
+	Add(s *Service) error
+	Update(id string, s *Service) error
+	Delete(id string) error
 
 	// Returns a slice of Services given:
 	// page - page in the collection
 	// perPage - number of entries per page
-	GetServices(int, int) ([]Service, int, error)
+	GetServices(page, perPage int) ([]Service, int, error)
 
 	// Returns a single Service given: path, operation, value
-	FindService(string, string, string) (*Service, error)
+	FindService(path, op, value string) (*Service, error)
 
 	// Returns a slice of Services given: path, operation, value, page, perPage
-	FindServices(string, string, string, int, int) ([]Service, int, error)
+	FindServices(path, op, value string, page, perPage int) ([]Service, int, error)
 }

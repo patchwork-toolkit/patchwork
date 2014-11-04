@@ -58,17 +58,17 @@ type Protocol struct {
 // Storage interface
 type CatalogStorage interface {
 	// CRUD
-	add(Service) error
-	update(string, Service) error
-	delete(string) error
-	get(string) (Service, error)
+	add(s Service) error
+	update(id string, s Service) error
+	delete(id string) error
+	get(id string) (Service, error)
 
 	// Utility functions
-	getMany(int, int) ([]Service, int, error)
+	getMany(page, perPage int) ([]Service, int, error)
 	getCount() int
-	cleanExpired(time.Time)
+	cleanExpired(ts time.Time)
 
 	// Path filtering
-	pathFilterOne(string, string, string) (Service, error)
-	pathFilter(string, string, string, int, int) ([]Service, int, error)
+	pathFilterOne(path, op, value string) (Service, error)
+	pathFilter(path, op, value string, page, perPage int) ([]Service, int, error)
 }

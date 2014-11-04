@@ -184,7 +184,7 @@ func (self *MemoryStorage) cleanExpired(timestamp time.Time) {
 	self.mutex.Lock()
 	for id, d := range self.devices {
 		if d.Ttl >= 0 && !d.Expires.After(timestamp) {
-			logger.Printf("Storage cleaner: registration %v has expired\n", id)
+			logger.Printf("MemoryStorage.cleanExpired() Registration %v has expired\n", id)
 			for _, rid := range d.Resources {
 				delete(self.resources, rid)
 			}

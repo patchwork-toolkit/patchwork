@@ -90,22 +90,22 @@ func (r *Resource) validate() bool {
 // Storage interface
 type CatalogStorage interface {
 	// CRUD
-	add(Device) error
-	update(string, Device) error
-	delete(string) error
-	get(string) (Device, error)
+	add(d Device) error
+	update(id string, d Device) error
+	delete(id string) error
+	get(id string) (Device, error)
 
 	// Utility functions
-	getMany(int, int) ([]Device, int, error)
+	getMany(page, perPage int) ([]Device, int, error)
 	getDevicesCount() int
 	getResourcesCount() int
-	getResourceById(string) (Resource, error)
-	devicesFromResources([]Resource) []Device
-	cleanExpired(time.Time)
+	getResourceById(id string) (Resource, error)
+	devicesFromResources(resources []Resource) []Device
+	cleanExpired(ts time.Time)
 
 	// Path filtering
-	pathFilterDevice(string, string, string) (Device, error)
-	pathFilterDevices(string, string, string, int, int) ([]Device, int, error)
-	pathFilterResource(string, string, string) (Resource, error)
-	pathFilterResources(string, string, string, int, int) ([]Resource, int, error)
+	pathFilterDevice(path, op, value string) (Device, error)
+	pathFilterDevices(path, op, value string, page, perPage int) ([]Device, int, error)
+	pathFilterResource(path, op, value string) (Resource, error)
+	pathFilterResources(path, op, value string, page, perPage int) ([]Resource, int, error)
 }

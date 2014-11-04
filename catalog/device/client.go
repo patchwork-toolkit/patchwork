@@ -21,25 +21,25 @@ func (dc *DeviceConfig) GetDevice() (*Device, error) {
 // Catalog client
 type CatalogClient interface {
 	// CRUD
-	Get(string) (*Device, error)
-	Add(*Device) error
-	Update(string, *Device) error
-	Delete(string) error
+	Get(id string) (*Device, error)
+	Add(d *Device) error
+	Update(id string, d *Device) error
+	Delete(id string) error
 
 	// Returns a slice of Devices given:
 	// page - page in the collection
 	// perPage - number of entries per page
-	GetDevices(int, int) ([]Device, int, error)
+	GetDevices(page, perPage int) ([]Device, int, error)
 
 	// Returns a single Device given: path, operation, value
-	FindDevice(string, string, string) (*Device, error)
+	FindDevice(path, op, value string) (*Device, error)
 
 	// Returns a slice of Devices given: path, operation, value, page, perPage
-	FindDevices(string, string, string, int, int) ([]Device, int, error)
+	FindDevices(path, op, value string, page, perPage int) ([]Device, int, error)
 
 	// Returns a single Resource given: path, operation, value
-	FindResource(string, string, string) (*Resource, error)
+	FindResource(path, op, value string) (*Resource, error)
 
 	// Returns a slice of Resources given: path, operation, value, page, perPage
-	FindResources(string, string, string, int, int) ([]Resource, int, error)
+	FindResources(path, op, value string, page, perPage int) ([]Resource, int, error)
 }

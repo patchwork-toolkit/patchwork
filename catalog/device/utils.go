@@ -20,21 +20,21 @@ func RegisterDevice(client CatalogClient, d *Device) error {
 	if err == ErrorNotFound {
 		err = client.Add(d)
 		if err != nil {
-			logger.Printf("Error accessing the catalog: %v\n", err)
+			logger.Printf("RegisterDevice() ERROR: %v", err)
 			return err
 		}
-		logger.Printf("Added Device registration %v", d.Id)
+		logger.Printf("RegisterDevice() Added Device registration %v", d.Id)
 	} else if err != nil {
-		logger.Printf("Error accessing the catalog: %v\n", err)
+		logger.Printf("RegisterDevice() ERROR: %v", err)
 		return err
 	} else {
 		// otherwise - Update
 		err = client.Update(d.Id, d)
 		if err != nil {
-			logger.Printf("Error accessing the catalog: %v\n", err)
+			logger.Printf("RegisterDevice() ERROR: %v", err)
 			return err
 		}
-		logger.Printf("Updated Device registration %v\n", d.Id)
+		logger.Printf("RegisterDevice() Updated Device registration %v\n", d.Id)
 	}
 	return nil
 }
@@ -49,7 +49,7 @@ func RegisterDeviceWithKeepalive(endpoint string, discover bool, d Device, sigCh
 	if discover {
 		endpoint, err = utils.DiscoverCatalogEndpoint(DnssdServiceType)
 		if err != nil {
-			logger.Printf("Error discovering endpoint: %v", err.Error())
+			logger.Printf("RegisterDeviceWithKeepalive() ERROR: Failed to discover the endpoint: %v", err.Error())
 			return
 		}
 	}
@@ -60,10 +60,10 @@ func RegisterDeviceWithKeepalive(endpoint string, discover bool, d Device, sigCh
 
 	// Will not keepalive registration with a negative TTL
 	if d.Ttl <= 0 {
-		logger.Println("Registration has ttl <= 0. Will not start the keepalive routine")
+		logger.Println("RegisterDeviceWithKeepalive() WARNING: Registration has ttl <= 0. Will not start the keepalive routine")
 		return
 	}
-	logger.Printf("RegisterInRemoteCatalog (%v/%v): will update registration periodically", endpoint, d.Id)
+	logger.Printf("RegisterDeviceWithKeepalive() Will update registration periodically: %v/%v", endpoint, d.Id)
 
 	// Configure & start the keepalive routine
 	ksigCh := make(chan bool)
@@ -74,23 +74,24 @@ func RegisterDeviceWithKeepalive(endpoint string, discover bool, d Device, sigCh
 		select {
 		// catch an error from the keepAlive routine
 		case e := <-kerrCh:
-			logger.Println("Error from the keepAlive routine: ", e)
+			logger.Println("RegisterDeviceWithKeepalive() ERROR:", e)
 			// Re-discover the endpoint if needed and start over
 			if discover {
 				endpoint, err = utils.DiscoverCatalogEndpoint(DnssdServiceType)
 				if err != nil {
-					logger.Println("Error discovering endpoint: ", err.Error())
+					logger.Println("RegisterDeviceWithKeepalive() ERROR:", err.Error())
 					return
 				}
 			}
-			logger.Println("Will use the new endpoint: ", endpoint)
+			logger.Println("RegisterDeviceWithKeepalive() Will use the new endpoint:", endpoint)
+
 			client := NewRemoteCatalogClient(endpoint)
 			RegisterDevice(client, &d)
 			go keepAlive(client, &d, ksigCh, kerrCh)
 
 		// catch a shutdown signal from the upstream
 		case <-sigCh:
-			logger.Printf("RegisterInRemoteCatalog (%v/%v): shutdown signalled by the caller", endpoint, d.Id)
+			logger.Printf("RegisterDeviceWithKeepalive() Shutdown signalled by the caller: %v/%v", endpoint, d.Id)
 			// signal shutdown to the keepAlive routine & close channels
 			ksigCh <- true
 			close(ksigCh)
@@ -119,20 +120,20 @@ func keepAlive(client CatalogClient, d *Device, sigCh <-chan bool, errCh chan<- 
 			err := client.Update(d.Id, d)
 
 			if err == ErrorNotFound {
-				logger.Printf("Registration %v not found in the remote catalog. TTL expired?\n", d.Id)
+				logger.Printf("keepAlive() ERROR: Registration %v not found in the remote catalog. TTL expired?", d.Id)
 				err = client.Add(d)
 				if err != nil {
-					logger.Printf("Error accessing the catalog: %v\n", err)
+					logger.Printf("keepAlive() ERROR: %v", err)
 					errTries += 1
 				} else {
-					logger.Printf("Added Device registration %v\n", d.Id)
+					logger.Printf("keepAlive() Added Device registration %v\n", d.Id)
 					errTries = 0
 				}
 			} else if err != nil {
-				logger.Printf("Error accessing the catalog: %v\n", err)
+				logger.Printf("keepAlive() ERROR: %v\n", err)
 				errTries += 1
 			} else {
-				logger.Printf("Updated Device registration %v\n", d.Id)
+				logger.Printf("keepAlive() Updated Device registration %v\n", d.Id)
 				errTries = 0
 			}
 			if errTries >= keepaliveRetries {
