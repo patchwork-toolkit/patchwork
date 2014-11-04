@@ -156,7 +156,7 @@ func (api *RESTfulAPI) mountCatalog(catalogStorage catalog.CatalogStorage) {
 		catalogStorage,
 		CatalogLocation,
 		StaticLocation,
-		fmt.Sprintf("RESTfulAPI.mountCatalog() Local catalog at %s", api.config.Description),
+		fmt.Sprintf("Local catalog at %s", api.config.Description),
 	)
 
 	api.router.Methods("GET").Path(CatalogLocation + "/{type}/{path}/{op}/{value}").HandlerFunc(catalogAPI.Filter).Name("filter")
