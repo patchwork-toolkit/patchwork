@@ -8,10 +8,6 @@ import (
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
 )
 
-const (
-	minKeepaliveSec = 5
-)
-
 // Parses config into a slice of configured devices
 func configureDevices(config *Config) []catalog.Device {
 	devices := make([]catalog.Device, 0, len(config.Devices))
