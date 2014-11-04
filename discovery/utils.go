@@ -1,3 +1,6 @@
+// Package discovery contains utility functions, which help to implement
+// various use-cases of executing some logic as a result of DNS-SD service
+// lookup
 package discovery
 
 import (
@@ -6,10 +9,10 @@ import (
 	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/oleksandr/bonjour"
 )
 
-// DNS-SD discovery result handler function type
+// Discovery single result handling function type
 type DiscoverHandler func(service *bonjour.ServiceEntry)
 
-// Runs DNS-SD discover of a service of a given type, calls DiscoverHandler
+// Runs DNS-SD discover of a service by a given type, calls given handler
 // on the first result, stops discovery afterwards
 func DiscoverAndExecute(serviceType string, handler DiscoverHandler) {
 	log.Println("Discovering catalog via DNS-SD...")
