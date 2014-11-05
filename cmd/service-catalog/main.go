@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"fmt"
+	"mime"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
@@ -69,10 +71,20 @@ func main() {
 		}
 	}()
 
+	err = mime.AddExtensionType(".jsonld", "application/ld+json")
+	if err != nil {
+		logger.Println("ERROR: ", err.Error())
+	}
+
 	// Configure the middleware
 	n := negroni.New(
 		negroni.NewRecovery(),
 		negroni.NewLogger(),
+		&negroni.Static{
+			Dir:       http.Dir(config.StaticDir),
+			Prefix:    utils.StaticLocation,
+			IndexFile: "index.html",
+		},
 	)
 	// Mount router
 	n.UseHandler(r)
@@ -100,7 +112,6 @@ func setupRouter(config *Config) (*mux.Router, error) {
 
 	// Configure routers
 	r := mux.NewRouter().StrictSlash(true)
-	r.Methods("GET").PathPrefix(utils.StaticLocation).HandlerFunc(utils.NewStaticHandler(config.StaticDir)).Name("static")
 	r.Methods("GET").Path(config.ApiLocation).HandlerFunc(api.List).Name("list")
 	r.Methods("POST").Path(config.ApiLocation + "/").HandlerFunc(api.Add).Name("add")
 	r.Methods("GET").Path(config.ApiLocation + "/{type}/{path}/{op}/{value}").HandlerFunc(api.Filter).Name("filter")
