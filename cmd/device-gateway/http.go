@@ -7,7 +7,6 @@ import (
 	"mime"
 	"net/http"
 	"path/filepath"
-	"strings"
 
 	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/codegangsta/negroni"
 	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/gorilla/mux"
@@ -46,14 +45,23 @@ func (api *RESTfulAPI) start(catalogStorage catalog.CatalogStorage) {
 	api.mountCatalog(catalogStorage)
 	api.mountResources()
 
-	api.router.Methods("GET").PathPrefix(StaticLocation).HandlerFunc(api.staticHandler())
 	api.router.Methods("GET", "POST").Path("/dashboard").HandlerFunc(api.dashboardHandler(*confPath))
 	api.router.Methods("GET").Path(api.restConfig.Location).HandlerFunc(api.indexHandler())
+
+	err := mime.AddExtensionType(".jsonld", "application/ld+json")
+	if err != nil {
+		logger.Println("RESTfulAPI.start() ERROR:", err.Error())
+	}
 
 	// Configure the middleware
 	n := negroni.New(
 		negroni.NewRecovery(),
 		negroni.NewLogger(),
+		&negroni.Static{
+			Dir:       http.Dir(api.config.StaticDir),
+			Prefix:    StaticLocation,
+			IndexFile: "index.html",
+		},
 	)
 	// Mount router
 	n.UseHandler(api.router)
@@ -113,18 +121,6 @@ func (api *RESTfulAPI) indexHandler() http.HandlerFunc {
 		b, _ := json.Marshal("Welcome to Device Gateway RESTful API")
 		rw.Header().Set("Content-Type", "application/json")
 		rw.Write(b)
-	}
-}
-
-func (api *RESTfulAPI) staticHandler() http.HandlerFunc {
-	return func(rw http.ResponseWriter, req *http.Request) {
-
-		// serve all /static/ctx files as ld+json
-		if strings.HasPrefix(req.URL.Path, "/static/ctx") {
-			rw.Header().Set("Content-Type", "application/ld+json")
-		}
-		filePath := strings.Join(strings.Split(req.URL.Path, "/")[2:], "/")
-		http.ServeFile(rw, req, api.config.StaticDir+"/"+filePath)
 	}
 }
 
