@@ -109,44 +109,37 @@ type Config struct {
 
 // Validates the loaded configuration
 func (c *Config) Validate() error {
-	// Check if HTTP is configured
-	if c.Http.BindAddr == "" || c.Http.BindPort == 0 {
-		return fmt.Errorf("HTTP has to be properly configured")
+	// Check if HTTP configuration is valid
+	err := c.Http.Validate()
+	if err != nil {
+		return err
 	}
 
-	// Check if REST protocol is configured
 	_, ok := c.Protocols[ProtocolTypeREST]
-	if !ok {
-		return fmt.Errorf("REST protocol has to be configured")
+	// Check if REST configuration is valid
+	if ok {
+		restConf := c.Protocols[ProtocolTypeREST].(RestProtocol)
+		err := restConf.Validate()
+		if err != nil {
+			return err
+		}
 	}
 
 	_, ok = c.Protocols[ProtocolTypeMQTT]
 	// Check if MQTT configuration is valid
 	if ok {
 		mqttConf := c.Protocols[ProtocolTypeMQTT].(MqttProtocol)
-
-		// Check that ServerUri is a valid URL
 		err := mqttConf.Validate()
 		if err != nil {
 			return err
 		}
+	}
 
-		// Check that the CA file exists
-		if mqttConf.CaFile != "" {
-			if _, err := os.Stat(mqttConf.CaFile); os.IsNotExist(err) {
-				return fmt.Errorf("MQTT CA file %s does not exist", mqttConf.CaFile)
-			}
-		}
-
-		// Check that the client certificate and key files exist
-		if mqttConf.CertFile != "" || mqttConf.KeyFile != "" {
-			if _, err := os.Stat(mqttConf.CertFile); os.IsNotExist(err) {
-				return fmt.Errorf("MQTT client certificate file %s does not exist", mqttConf.CertFile)
-			}
-
-			if _, err := os.Stat(mqttConf.KeyFile); os.IsNotExist(err) {
-				return fmt.Errorf("MQTT client key file %s does not exist", mqttConf.KeyFile)
-			}
+	// Check if remote catalogs configs are valid
+	for _, cat := range c.Catalog {
+		err := cat.Validate()
+		if err != nil {
+			return err
 		}
 	}
 
@@ -166,11 +159,18 @@ func (c *Config) FindResource(resourceId string) (*Resource, bool) {
 }
 
 //
-// Catalog entry and types
+// Catalog config
 //
 type Catalog struct {
 	Discover bool   `json:"discover"`
 	Endpoint string `json:"endpoint"`
+}
+
+func (c *Catalog) Validate() error {
+	if c.Endpoint == "" && c.Discover == false {
+		return fmt.Errorf("Catalog must have either endpoint or discovery flag defined")
+	}
+	return nil
 }
 
 //
@@ -181,11 +181,25 @@ type HttpConfig struct {
 	BindPort int    `json:"bindPort"`
 }
 
+func (h *HttpConfig) Validate() error {
+	if h.BindAddr == "" || h.BindPort == 0 {
+		return fmt.Errorf("HTTP bindAddr and bindPort have to be defined")
+	}
+	return nil
+}
+
 //
 // Protocol entry and types
 //
 type RestProtocol struct {
 	Location string `json:"location"`
+}
+
+func (p *RestProtocol) Validate() error {
+	if p.Location == "" {
+		return fmt.Errorf("REST location has to be defined")
+	}
+	return nil
 }
 
 type MqttProtocol struct {
@@ -207,6 +221,24 @@ func (p *MqttProtocol) Validate() error {
 		}
 		if serverUri.Scheme != "tcp" && serverUri.Scheme != "ssl" {
 			return fmt.Errorf("MQTT ServerUri scheme must be either 'tcp' or 'ssl'")
+		}
+	}
+
+	// Check that the CA file exists
+	if p.CaFile != "" {
+		if _, err := os.Stat(p.CaFile); os.IsNotExist(err) {
+			return fmt.Errorf("MQTT CA file %s does not exist", p.CaFile)
+		}
+	}
+
+	// Check that the client certificate and key files exist
+	if p.CertFile != "" || p.KeyFile != "" {
+		if _, err := os.Stat(p.CertFile); os.IsNotExist(err) {
+			return fmt.Errorf("MQTT client certificate file %s does not exist", p.CertFile)
+		}
+
+		if _, err := os.Stat(p.KeyFile); os.IsNotExist(err) {
+			return fmt.Errorf("MQTT client key file %s does not exist", p.KeyFile)
 		}
 	}
 	return nil

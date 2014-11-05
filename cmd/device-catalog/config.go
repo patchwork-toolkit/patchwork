@@ -57,10 +57,10 @@ func (c *Config) Validate() error {
 	}
 	for _, cat := range c.ServiceCatalog {
 		if cat.Endpoint == "" && cat.Discover == false {
-			err = fmt.Errorf("All ServiceCatalog entries should have either endpoint or a discovery flag defined")
+			err = fmt.Errorf("All ServiceCatalog entries must have either endpoint or a discovery flag defined")
 		}
 		if cat.Ttl <= 0 {
-			err = fmt.Errorf("All ServiceCatalog entries should have TTL >= 0")
+			err = fmt.Errorf("All ServiceCatalog entries must have TTL >= 0")
 		}
 	}
 	return err
