@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/oleksandr/bonjour"
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/device"
@@ -72,7 +73,11 @@ func main() {
 
 	// Ctrl+C handling
 	handler := make(chan os.Signal, 1)
-	signal.Notify(handler, os.Interrupt)
+	signal.Notify(handler,
+		syscall.SIGHUP,
+		syscall.SIGINT,
+		syscall.SIGTERM,
+		syscall.SIGQUIT)
 	for sig := range handler {
 		if sig == os.Interrupt {
 			logger.Println("Caught interrupt signal...")

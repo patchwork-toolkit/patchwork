@@ -54,16 +54,16 @@ func RegisterDeviceWithKeepalive(endpoint string, discover bool, d Device, sigCh
 		}
 	}
 
-	// Register
+	// Configure client
 	client := NewRemoteCatalogClient(endpoint)
-	RegisterDevice(client, &d)
 
 	// Will not keepalive registration with a negative TTL
 	if d.Ttl <= 0 {
 		logger.Println("RegisterDeviceWithKeepalive() WARNING: Registration has ttl <= 0. Will not start the keepalive routine")
+		RegisterDevice(client, &d)
 		return
 	}
-	logger.Printf("RegisterDeviceWithKeepalive() Will update registration periodically: %v/%v", endpoint, d.Id)
+	logger.Printf("RegisterDeviceWithKeepalive() Will register and update registration periodically: %v/%v", endpoint, d.Id)
 
 	// Configure & start the keepalive routine
 	ksigCh := make(chan bool)
@@ -84,21 +84,23 @@ func RegisterDeviceWithKeepalive(endpoint string, discover bool, d Device, sigCh
 				}
 			}
 			logger.Println("RegisterDeviceWithKeepalive() Will use the new endpoint:", endpoint)
-
 			client := NewRemoteCatalogClient(endpoint)
-			RegisterDevice(client, &d)
 			go keepAlive(client, &d, ksigCh, kerrCh)
 
 		// catch a shutdown signal from the upstream
 		case <-sigCh:
-			logger.Printf("RegisterDeviceWithKeepalive() Shutdown signalled by the caller: %v/%v", endpoint, d.Id)
+			logger.Printf("RegisterDeviceWithKeepalive(): Removing the registration %v/%v...", endpoint, d.Id)
 			// signal shutdown to the keepAlive routine & close channels
-			ksigCh <- true
+			select {
+			case ksigCh <- true:
+				// delete entry in the remote catalog
+				client.Delete(d.Id)
+			case <-time.After(1 * time.Second):
+				logger.Printf("RegisterDeviceWithKeepalive(): timeout removing registration %v/%v: catalog unreachable", endpoint, d.Id)
+			}
+
 			close(ksigCh)
 			close(kerrCh)
-
-			// delete entry in the remote catalog
-			client.Delete(d.Id)
 			return
 		}
 	}
@@ -114,6 +116,9 @@ func keepAlive(client CatalogClient, d *Device, sigCh <-chan bool, errCh chan<- 
 	ticker := time.NewTicker(dur)
 	errTries := 0
 
+	// Register
+	RegisterDevice(client, d)
+
 	for {
 		select {
 		case <-ticker.C:
@@ -126,14 +131,14 @@ func keepAlive(client CatalogClient, d *Device, sigCh <-chan bool, errCh chan<- 
 					logger.Printf("keepAlive() ERROR: %v", err)
 					errTries += 1
 				} else {
-					logger.Printf("keepAlive() Added Device registration %v\n", d.Id)
+					logger.Printf("keepAlive() Added Device registration %v", d.Id)
 					errTries = 0
 				}
 			} else if err != nil {
-				logger.Printf("keepAlive() ERROR: %v\n", err)
+				logger.Printf("keepAlive() ERROR: %v", err)
 				errTries += 1
 			} else {
-				logger.Printf("keepAlive() Updated Device registration %v\n", d.Id)
+				logger.Printf("keepAlive() Updated Device registration %v", d.Id)
 				errTries = 0
 			}
 			if errTries >= keepaliveRetries {
