@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+
+	utils "github.com/patchwork-toolkit/patchwork/catalog"
 )
 
 type Config struct {
@@ -22,7 +24,7 @@ type StorageConfig struct {
 }
 
 var supportedBackends = map[string]bool{
-	"memory": true,
+	utils.CatalogBackendMemory: true,
 }
 
 func (c *Config) Validate() error {

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"strings"
+
+	utils "github.com/patchwork-toolkit/patchwork/catalog"
 )
 
 type Config struct {
@@ -30,7 +32,7 @@ type StorageConfig struct {
 }
 
 var supportedBackends = map[string]bool{
-	"memory": true,
+	utils.CatalogBackendMemory: true,
 }
 
 func (c *Config) Validate() error {
@@ -54,6 +56,9 @@ func (c *Config) Validate() error {
 		err = fmt.Errorf("staticDir must not have a training slash")
 	}
 	for _, cat := range c.ServiceCatalog {
+		if cat.Endpoint == "" && cat.Discover == false {
+			err = fmt.Errorf("All ServiceCatalog entries should have either endpoint or a discovery flag defined")
+		}
 		if cat.Ttl <= 0 {
 			err = fmt.Errorf("All ServiceCatalog entries should have TTL >= 0")
 		}
