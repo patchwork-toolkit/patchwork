@@ -9,7 +9,7 @@ import (
 var logger *log.Logger
 
 func init() {
-	logger = log.New(os.Stdout, "[sc] ", 0)
+	logger = log.New(os.Stdout, loggerPrefix, 0)
 
 	v, err := strconv.Atoi(os.Getenv("DEBUG"))
 	if err == nil && v == 1 {

@@ -6,4 +6,5 @@ const (
 	ApiVersion          = "0.1.0"
 	ApiCollectionType   = "ServiceCatalog"
 	ApiRegistrationType = "Service"
+	loggerPrefix        = "[sc] "
 )

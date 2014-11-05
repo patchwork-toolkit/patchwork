@@ -7,4 +7,5 @@ const (
 	ApiCollectionType = "DeviceCatalog"
 	ApiDeviceType     = "Device"
 	ApiResourceType   = "Resource"
+	loggerPrefix      = "[dc] "
 )
