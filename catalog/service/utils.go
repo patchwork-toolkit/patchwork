@@ -48,21 +48,21 @@ func RegisterServiceWithKeepalive(endpoint string, discover bool, s Service, sig
 	if discover {
 		endpoint, err = utils.DiscoverCatalogEndpoint(DnssdServiceType)
 		if err != nil {
-			log.Println("Error discovering endpoint: %v", err.Error())
+			log.Println("Error discovering endpoint: ", err.Error())
 			return
 		}
 	}
 
-	// Register
+	// Configure client
 	client := NewRemoteCatalogClient(endpoint)
-	RegisterService(client, &s)
 
 	// Will not keepalive registration with a negative TTL
 	if s.Ttl <= 0 {
-		log.Println("Registration has ttl <= 0. Will not start the keepalive routine")
+		log.Printf("RegisterInRemoteCatalog (%v/%v): ttl <= 0. Will register, but not start the keepalive routine", endpoint, s.Id)
+		RegisterService(client, &s)
 		return
 	}
-	log.Printf("RegisterInRemoteCatalog (%v/%v): will update registration periodically", endpoint, s.Id)
+	log.Printf("RegisterInRemoteCatalog (%v/%v): will register and update periodically", endpoint, s.Id)
 
 	// Configure & start the keepalive routine
 	ksigCh := make(chan bool)
@@ -84,19 +84,22 @@ func RegisterServiceWithKeepalive(endpoint string, discover bool, s Service, sig
 			}
 			log.Println("Will use the new endpoint: ", endpoint)
 			client := NewRemoteCatalogClient(endpoint)
-			RegisterService(client, &s)
 			go keepAlive(client, &s, ksigCh, kerrCh)
 
 		// catch a shutdown signal from the upstream
 		case <-sigCh:
-			log.Printf("RegisterInRemoteCatalog (%v/%v): shutdown signalled by the caller", endpoint, s.Id)
+			log.Printf("RegisterInRemoteCatalog (%v/%v): removing the registration...", endpoint, s.Id)
 			// signal shutdown to the keepAlive routine & close channels
-			ksigCh <- true
+			select {
+			case ksigCh <- true:
+				// delete entry in the remote catalog
+				client.Delete(s.Id)
+			case <-time.After(1 * time.Second):
+				log.Printf("RegisterInRemoteCatalog (%v/%v): timeout: catalog service unreachable", endpoint, d.Id)
+			}
+
 			close(ksigCh)
 			close(kerrCh)
-
-			// delete entry in the remote catalog
-			client.Delete(s.Id)
 			return
 		}
 	}
@@ -111,6 +114,9 @@ func keepAlive(client CatalogClient, s *Service, sigCh <-chan bool, errCh chan<-
 	dur := utils.KeepAliveDuration(s.Ttl)
 	ticker := time.NewTicker(dur)
 	errTries := 0
+
+	// Register
+	RegisterDevice(client, s)
 
 	for {
 		select {
