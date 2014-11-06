@@ -1,0 +1,26 @@
+{
+	"ImportPath": "github.com/patchwork-toolkit/patchwork",
+	"GoVersion": "go1.3.3",
+	"Packages": [
+		"github.com/patchwork-toolkit/patchwork/..."
+	],
+	"Deps": [
+		{
+			"ImportPath": "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git",
+			"Rev": "0d6c6e73b249ca8d48fde878b4d1cfbb4cd45a5e"
+		},
+		{
+			"ImportPath": "github.com/codegangsta/negroni",
+			"Comment": "v0.1-32-gc64702c",
+			"Rev": "c64702ca03d0f858ab7866638b69e85f0d4c6ee7"
+		},
+		{
+			"ImportPath": "github.com/gorilla/mux",
+			"Rev": "e444e69cbd2e2e3e0749a2f3c717cec491552bbf"
+		},
+		{
+			"ImportPath": "github.com/oleksandr/bonjour",
+			"Rev": "f6b667b79a52d78884be9e2b6e54ddd43cedeafc"
+		}
+	]
+}
