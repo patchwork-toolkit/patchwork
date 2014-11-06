@@ -6,7 +6,7 @@ package discovery
 import (
 	"log"
 
-	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/oleksandr/bonjour"
+	"github.com/oleksandr/bonjour"
 )
 
 // Discovery single result handling function type

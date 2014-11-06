@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/gorilla/mux"
+	"github.com/gorilla/mux"
 	"github.com/patchwork-toolkit/patchwork/catalog"
 )
 
