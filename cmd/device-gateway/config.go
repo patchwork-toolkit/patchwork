@@ -203,24 +203,24 @@ func (p *RestProtocol) Validate() error {
 }
 
 type MqttProtocol struct {
-	Discover  bool   `json:"discover"`
-	ServerUri string `json:"serverUri"`
-	Prefix    string `json:"prefix"`
-	Username  string `json:"username"`
-	Password  string `json:"password"`
-	CaFile    string `json:"caFile"`
-	CertFile  string `json:"certFile"`
-	KeyFile   string `json:"keyFile"`
+	Discover bool   `json:"discover"`
+	URL      string `json:"url"`
+	Prefix   string `json:"prefix"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	CaFile   string `json:"caFile"`
+	CertFile string `json:"certFile"`
+	KeyFile  string `json:"keyFile"`
 }
 
 func (p *MqttProtocol) Validate() error {
 	if !p.Discover {
-		serverUri, err := url.Parse(p.ServerUri)
+		url, err := url.Parse(p.URL)
 		if err != nil {
-			return fmt.Errorf("MQTT ServerUri must be a URI in the format scheme://host:port")
+			return fmt.Errorf("MQTT broker URL must be a valid URI in the format scheme://host:port")
 		}
-		if serverUri.Scheme != "tcp" && serverUri.Scheme != "ssl" {
-			return fmt.Errorf("MQTT ServerUri scheme must be either 'tcp' or 'ssl'")
+		if url.Scheme != "tcp" && url.Scheme != "ssl" {
+			return fmt.Errorf("MQTT broker URL scheme must be either 'tcp' or 'ssl'")
 		}
 	}
 

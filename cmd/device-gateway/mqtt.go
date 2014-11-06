@@ -69,7 +69,7 @@ func (p *MQTTPublisher) dataInbox() chan<- AgentResponse {
 func (p *MQTTPublisher) start() {
 	logger.Println("MQTTPublisher.start()")
 
-	if p.config.Discover && p.config.ServerUri == "" {
+	if p.config.Discover && p.config.URL == "" {
 		err := p.discoverBrokerEndpoint()
 		if err != nil {
 			logger.Println("MQTTPublisher.start() failed to start publisher:", err.Error())
@@ -81,7 +81,7 @@ func (p *MQTTPublisher) start() {
 	p.configureMqttConnection()
 
 	// start the connection routine
-	logger.Printf("MQTTPublisher.start() Will connect to the broker %v\n", p.config.ServerUri)
+	logger.Printf("MQTTPublisher.start() Will connect to the broker %v\n", p.config.URL)
 	go p.connect(0)
 
 	qos := 1
@@ -128,7 +128,7 @@ func (p *MQTTPublisher) discoverBrokerEndpoint() error {
 			}
 			logger.Println(proto.Endpoint["url"])
 			if ProtocolType(proto.Type) == ProtocolTypeMQTT {
-				p.config.ServerUri = proto.Endpoint["url"].(string)
+				p.config.URL = proto.Endpoint["url"].(string)
 				break
 			}
 		}
@@ -154,7 +154,7 @@ func (p *MQTTPublisher) connect(backOff int) {
 		return
 	}
 	for {
-		logger.Printf("MQTTPublisher.connect() connecting to the broker %v, backOff: %v sec\n", p.config.ServerUri, backOff)
+		logger.Printf("MQTTPublisher.connect() connecting to the broker %v, backOff: %v sec\n", p.config.URL, backOff)
 		time.Sleep(time.Duration(backOff) * time.Second)
 		if p.client.IsConnected() {
 			break
@@ -171,7 +171,7 @@ func (p *MQTTPublisher) connect(backOff int) {
 		}
 	}
 
-	logger.Printf("MQTTPublisher.connect() connected to the broker %v", p.config.ServerUri)
+	logger.Printf("MQTTPublisher.connect() connected to the broker %v", p.config.URL)
 	return
 }
 
@@ -185,7 +185,7 @@ func (p *MQTTPublisher) onConnectionLost(client *MQTT.MqttClient, reason error) 
 
 func (p *MQTTPublisher) configureMqttConnection() {
 	connOpts := MQTT.NewClientOptions().
-		AddBroker(p.config.ServerUri).
+		AddBroker(p.config.URL).
 		SetClientId(p.clientId).
 		SetCleanSession(true).
 		SetOnConnectionLost(p.onConnectionLost)
@@ -197,7 +197,7 @@ func (p *MQTTPublisher) configureMqttConnection() {
 	}
 
 	// SSL/TLS
-	if strings.HasPrefix(p.config.ServerUri, "ssl") {
+	if strings.HasPrefix(p.config.URL, "ssl") {
 		tlsConfig := &tls.Config{}
 		// Custom CA to auth broker with a self-signed certificate
 		if p.config.CaFile != "" {
