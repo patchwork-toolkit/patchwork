@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
+	MQTT "github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
 	"github.com/patchwork-toolkit/patchwork/catalog"
 	"github.com/patchwork-toolkit/patchwork/catalog/service"
 )

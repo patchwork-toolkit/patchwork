@@ -10,9 +10,9 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/codegangsta/negroni"
-	"github.com/gorilla/mux"
-	"github.com/oleksandr/bonjour"
+	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/codegangsta/negroni"
+	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/gorilla/mux"
+	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/oleksandr/bonjour"
 	utils "github.com/patchwork-toolkit/patchwork/catalog"
 	catalog "github.com/patchwork-toolkit/patchwork/catalog/service"
 )

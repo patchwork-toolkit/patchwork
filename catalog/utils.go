@@ -8,7 +8,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/oleksandr/bonjour"
+	"github.com/patchwork-toolkit/patchwork/Godeps/_workspace/src/github.com/oleksandr/bonjour"
 )
 
 const (
