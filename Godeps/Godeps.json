@@ -2,7 +2,9 @@
 	"ImportPath": "github.com/patchwork-toolkit/patchwork",
 	"GoVersion": "go1.3.3",
 	"Packages": [
-		"github.com/patchwork-toolkit/patchwork/..."
+		"github.com/patchwork-toolkit/patchwork/cmd/...",
+		"github.com/patchwork-toolkit/patchwork/catalog/...",
+		"github.com/patchwork-toolkit/patchwork/discovery/..."
 	],
 	"Deps": [
 		{
