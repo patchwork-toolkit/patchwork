@@ -144,8 +144,9 @@ func (self ReadableCatalogAPI) collectionFromDevices(devices []Device, page, per
 }
 
 func (self ReadableCatalogAPI) paginatedDeviceFromDevice(d Device, page, perPage int) *PaginatedDevice {
+	dev := d.ldify(self.apiLocation)
 	pd := &PaginatedDevice{
-		&d,
+		&dev,
 		make([]Resource, 0, len(d.Resources)),
 		page,
 		perPage,
