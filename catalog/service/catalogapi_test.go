@@ -1,4 +1,4 @@
-package device
+package service
 
 import (
 	"bytes"
@@ -30,100 +30,61 @@ func setupRouter() *mux.Router {
 	r.Methods("POST").Path(apiLocation + "/").HandlerFunc(api.Add).Name("add")
 	r.Methods("GET").Path(apiLocation + "/{type}/{path}/{op}/{value}").HandlerFunc(api.Filter).Name("filter")
 
-	url := apiLocation + "/{dgwid}/{regid}"
+	url := apiLocation + "/{hostid}/{regid}"
 	r.Methods("GET").Path(url).HandlerFunc(api.Get).Name("get")
 	r.Methods("PUT").Path(url).HandlerFunc(api.Update).Name("update")
 	r.Methods("DELETE").Path(url).HandlerFunc(api.Delete).Name("delete")
-	r.Methods("GET").Path(url + "/{resname}").HandlerFunc(api.GetResource).Name("details")
 
 	return r
 }
 
-func mockedDevice(id string) *Device {
-	return &Device{
-		Id:          "TestHost/TestDevice" + id,
-		Type:        ApiDeviceType,
-		Name:        "TestDevice" + id,
+func mockedService(id string) *Service {
+	return &Service{
+		Id:          "TestHost/TestService" + id,
+		Type:        ApiRegistrationType,
+		Name:        "TestService" + id,
 		Meta:        map[string]interface{}{"test-id": id},
-		Description: "Test Device",
-		Ttl:         30,
-		Resources: []Resource{
-			Resource{
-				Id:   "TestHost/TestDevice" + id + "/TestResource",
-				Type: ApiResourceType,
-				Name: "TestResource",
-				Meta: map[string]interface{}{"test-id-resource": id},
-				Protocols: []Protocol{Protocol{
-					Type:         "REST",
-					Endpoint:     map[string]interface{}{"url": "http://localhost:9000/rest/device/resource"},
-					Methods:      []string{"GET"},
-					ContentTypes: []string{"application/senml+json"},
-				}},
-				Representation: map[string]interface{}{"application/senml+json": ""},
-			},
-		},
+		Description: "Test Service",
+		Protocols: []Protocol{Protocol{
+			Type:         "REST",
+			Endpoint:     map[string]interface{}{"url": "http://localhost:9000/api"},
+			Methods:      []string{"GET"},
+			ContentTypes: []string{"application/json"},
+		}},
+		Representation: map[string]interface{}{"application/json": "{}"},
+		Ttl:            30,
 	}
 }
 
-func sameDevices(d1, d2 *Device, checkID bool) bool {
+func sameServices(s1, s2 *Service, checkID bool) bool {
 	// Compare IDs if specified
 	if checkID {
-		if d1.Id != d2.Type {
+		if s1.Id != s2.Type {
 			return false
 		}
 	}
 
 	// Compare metadata
-	for k1, v1 := range d1.Meta {
-		v2, ok := d2.Meta[k1]
+	for k1, v1 := range s1.Meta {
+		v2, ok := s2.Meta[k1]
 		if !ok || v1 != v2 {
 			return false
 		}
 	}
-	for k2, v2 := range d2.Meta {
-		v1, ok := d1.Meta[k2]
+	for k2, v2 := range s2.Meta {
+		v1, ok := s1.Meta[k2]
 		if !ok || v1 != v2 {
 			return false
 		}
 	}
 
-	// Compare number of resources
-	if len(d1.Resources) != len(d2.Resources) {
+	// Compare number of protocols
+	if len(s1.Protocols) != len(s2.Protocols) {
 		return false
 	}
 
 	// Compare all other attributes
-	if d1.Type != d2.Type || d1.Name != d2.Name || d1.Description != d2.Description || d1.Ttl != d2.Ttl {
-		return false
-	}
-
-	return true
-}
-
-func sameResources(r1, r2 *Resource, checkID bool) bool {
-	// Compare IDs if specified
-	if checkID {
-		if r1.Id != r2.Type {
-			return false
-		}
-	}
-
-	// Compare metadata
-	for k1, v1 := range r1.Meta {
-		v2, ok := r2.Meta[k1]
-		if !ok || v1 != v2 {
-			return false
-		}
-	}
-	for k2, v2 := range r2.Meta {
-		v1, ok := r1.Meta[k2]
-		if !ok || v1 != v2 {
-			return false
-		}
-	}
-
-	// Compare all other attributes
-	if r1.Type != r2.Type || r1.Name != r2.Name || len(r1.Protocols) != len(r2.Protocols) {
+	if s1.Type != s2.Type || s1.Name != s2.Name || s1.Description != s2.Description || s1.Ttl != s2.Ttl {
 		return false
 	}
 
@@ -167,8 +128,8 @@ func TestCreate(t *testing.T) {
 	ts := httptest.NewServer(setupRouter())
 	defer ts.Close()
 
-	device := mockedDevice("1")
-	b, _ := json.Marshal(device)
+	service := mockedService("1")
+	b, _ := json.Marshal(service)
 
 	// Create
 	url := ts.URL + apiLocation + "/"
@@ -212,9 +173,8 @@ func TestRetrieve(t *testing.T) {
 	ts := httptest.NewServer(setupRouter())
 	defer ts.Close()
 
-	device := mockedDevice("1")
-	resource := &device.Resources[0]
-	b, _ := json.Marshal(device)
+	service := mockedService("1")
+	b, _ := json.Marshal(service)
 
 	// Create
 	url := ts.URL + apiLocation + "/"
@@ -224,8 +184,8 @@ func TestRetrieve(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	// Retrieve: device
-	url = url + device.Id
+	// Retrieve: service
+	url = url + service.Id
 	t.Log("Calling GET", url)
 	res, err = http.Get(url)
 	if err != nil {
@@ -240,54 +200,20 @@ func TestRetrieve(t *testing.T) {
 		t.Fatalf("Response should have Content-Type: application/ld+json, got instead %s", res.Header.Get("Content-Type"))
 	}
 
-	var device2 *Device
+	var service2 *Service
 	decoder := json.NewDecoder(res.Body)
 	defer res.Body.Close()
 
-	err = decoder.Decode(&device2)
+	err = decoder.Decode(&service2)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
-	if !strings.HasPrefix(device2.Id, apiLocation) {
-		t.Fatalf("Device ID should have been prefixed with %v by catalog, retrieved ID: %v", apiLocation, device2.Id)
+	if !strings.HasPrefix(service2.Id, apiLocation) {
+		t.Fatalf("Service ID should have been prefixed with %v by catalog, retrieved ID: %v", apiLocation, service2.Id)
 	}
-	if !sameDevices(device, device2, false) {
-		t.Fatalf("The retrieved device is not the same as the added one:\n Added:\n %v \n Retrieved: \n %v", device, device2)
-	}
-	if !sameResources(&device.Resources[0], resource, false) {
-		t.Fatalf("The retrieved device has not the same resource as the added one:\n Added:\n %v \n Retrieved: \n %v", device, device2)
-	}
-
-	// Retrieve: resource
-	url = ts.URL + apiLocation + "/" + resource.Id
-	t.Log("Calling GET", url)
-	res, err = http.Get(url)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	if res.StatusCode != http.StatusOK {
-		t.Fatalf("Server should return %v, got instead: %v (%s)", http.StatusOK, res.StatusCode, res.Status)
-	}
-	if !strings.HasPrefix(res.Header.Get("Content-Type"), "application/ld+json") {
-		t.Fatalf("Response should have Content-Type: application/ld+json, got instead %s", res.Header.Get("Content-Type"))
-	}
-
-	var resource2 *Resource
-	decoder = json.NewDecoder(res.Body)
-	defer res.Body.Close()
-
-	err = decoder.Decode(&resource2)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	if !strings.HasPrefix(resource2.Id, apiLocation) {
-		t.Fatalf("Resource ID should have been prefixed with %v by catalog, retrieved ID: %v", apiLocation, resource2.Id)
-	}
-	if !sameResources(resource, resource2, false) {
-		t.Fatalf("The retrieved resource is not the same as the added one:\n Added:\n %v \n Retrieved: \n %v", resource, resource2)
+	if !sameServices(service, service2, false) {
+		t.Fatalf("The retrieved service is not the same as the added one:\n Added:\n %v \n Retrieved: \n %v", service, service2)
 	}
 }
 
@@ -295,8 +221,8 @@ func TestUpdate(t *testing.T) {
 	ts := httptest.NewServer(setupRouter())
 	defer ts.Close()
 
-	device := mockedDevice("1")
-	b, _ := json.Marshal(device)
+	service := mockedService("1")
+	b, _ := json.Marshal(service)
 
 	// Create
 	url := ts.URL + apiLocation + "/"
@@ -307,10 +233,10 @@ func TestUpdate(t *testing.T) {
 	}
 
 	// Update
-	device2 := mockedDevice("1")
-	device2.Description = "Updated Test Device"
-	url = url + device.Id
-	b, _ = json.Marshal(device2)
+	service2 := mockedService("1")
+	service2.Description = "Updated Test Service"
+	url = url + service.Id
+	b, _ = json.Marshal(service2)
 
 	t.Log("Calling PUT", url)
 	req, err := http.NewRequest("PUT", url, bytes.NewReader(b))
@@ -323,7 +249,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	if res.StatusCode != http.StatusOK {
-		t.Fatalf("Server should return %v, got instead: %v (%s)", http.StatusCreated, res.StatusCode, res.Status)
+		t.Fatalf("Server should return %v, got instead: %v (%s)", http.StatusOK, res.StatusCode, res.Status)
 	}
 
 	// Retrieve & compare
@@ -333,20 +259,17 @@ func TestUpdate(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	var device3 *Device
+	var service3 *Service
 	decoder := json.NewDecoder(res.Body)
 	defer res.Body.Close()
 
-	err = decoder.Decode(&device3)
+	err = decoder.Decode(&service3)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
-	if !sameDevices(device2, device3, false) {
-		t.Fatalf("The retrieved device is not the same as the added one:\n Added:\n %v \n Retrieved: \n %v", device2, device3)
-	}
-	if !sameResources(&device2.Resources[0], &device3.Resources[0], false) {
-		t.Fatalf("The retrieved device has not the same resource as the added one:\n Added:\n %v \n Retrieved: \n %v", device2, device3)
+	if !sameServices(service2, service3, false) {
+		t.Fatalf("The retrieved service is not the same as the added one:\n Added:\n %v \n Retrieved: \n %v", service2, service3)
 	}
 }
 
@@ -354,8 +277,8 @@ func TestDelete(t *testing.T) {
 	ts := httptest.NewServer(setupRouter())
 	defer ts.Close()
 
-	device := mockedDevice("1")
-	b, _ := json.Marshal(device)
+	service := mockedService("1")
+	b, _ := json.Marshal(service)
 
 	// Create
 	url := ts.URL + apiLocation + "/"
@@ -366,7 +289,7 @@ func TestDelete(t *testing.T) {
 	}
 
 	// Delete
-	url = url + device.Id
+	url = url + service.Id
 	t.Log("Calling DELETE", url)
 	req, err := http.NewRequest("DELETE", url, bytes.NewReader([]byte{}))
 	if err != nil {
@@ -408,14 +331,14 @@ func TestFilter(t *testing.T) {
 	ts := httptest.NewServer(setupRouter())
 	defer ts.Close()
 
-	// create 3 devices
-	device1 := mockedDevice("1")
-	device2 := mockedDevice("2")
-	device3 := mockedDevice("3")
+	// create 3 services
+	service1 := mockedService("1")
+	service2 := mockedService("2")
+	service3 := mockedService("3")
 
 	// Add
 	url := ts.URL + apiLocation + "/"
-	for _, d := range []*Device{device1, device2, device3} {
+	for _, d := range []*Service{service1, service2, service3} {
 		b, _ := json.Marshal(d)
 
 		_, err := http.Post(url, "application/ld+json", bytes.NewReader(b))
@@ -424,9 +347,9 @@ func TestFilter(t *testing.T) {
 		}
 	}
 
-	// Devices
+	// Services
 	// Filter many
-	url = ts.URL + apiLocation + "/" + FTypeDevices + "/name/" + utils.FOpPrefix + "/" + "Test"
+	url = ts.URL + apiLocation + "/" + FTypeServices + "/name/" + utils.FOpPrefix + "/" + "Test"
 	t.Log("Calling GET", url)
 	res, err := http.Get(url)
 	if err != nil {
@@ -448,66 +371,23 @@ func TestFilter(t *testing.T) {
 	}
 
 	// Filter one
-	url = ts.URL + apiLocation + "/" + FTypeDevice + "/name/" + utils.FOpEquals + "/" + device1.Name
+	url = ts.URL + apiLocation + "/" + FTypeService + "/name/" + utils.FOpEquals + "/" + service1.Name
 	t.Log("Calling GET", url)
 	res, err = http.Get(url)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
-	var deviceF *Device
+	var serviceF *Service
 	decoder = json.NewDecoder(res.Body)
 	defer res.Body.Close()
 
-	err = decoder.Decode(&deviceF)
+	err = decoder.Decode(&serviceF)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
-	if !sameDevices(device1, deviceF, false) {
-		t.Fatalf("The retrieved device is not the same as the added one:\n Added:\n %v \n Retrieved: \n %v", device1, deviceF)
-	}
-
-	// Resources
-	// Filter many
-	url = ts.URL + apiLocation + "/" + FTypeResources + "/name/" + utils.FOpPrefix + "/" + "Test"
-	t.Log("Calling GET", url)
-	res, err = http.Get(url)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	decoder = json.NewDecoder(res.Body)
-	defer res.Body.Close()
-
-	err = decoder.Decode(&collection)
-
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	if collection.Total != 3 {
-		t.Fatal("Server should return a collection of *3* resources, but got total", collection.Total)
-	}
-
-	// Filter one
-	url = ts.URL + apiLocation + "/" + FTypeResource + "/name/" + utils.FOpEquals + "/" + device1.Resources[0].Name
-	t.Log("Calling GET", url)
-	res, err = http.Get(url)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	var resource *Resource
-	decoder = json.NewDecoder(res.Body)
-	defer res.Body.Close()
-
-	err = decoder.Decode(&resource)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
-
-	if !sameResources(&device1.Resources[0], resource, false) {
-		t.Fatalf("The retrieved device is not the same as the added one:\n Added:\n %v \n Retrieved: \n %v", device1.Resources[0], resource)
+	if !sameServices(service1, serviceF, false) {
+		t.Fatalf("The retrieved service is not the same as the added one:\n Added:\n %v \n Retrieved: \n %v", service1, serviceF)
 	}
 }
